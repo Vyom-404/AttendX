@@ -4,3 +4,4 @@ __pycache__/
 .env
 face-service/samples/
 api/node_modules/
+api/students.json

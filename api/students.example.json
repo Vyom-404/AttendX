@@ -1,0 +1,12 @@
+[
+  {
+    "folder": "student_01",
+    "studentId": "student_01",
+    "name": "Student One"
+  },
+  {
+    "folder": "student_02",
+    "studentId": "student_02",
+    "name": "Student Two"
+  }
+]
