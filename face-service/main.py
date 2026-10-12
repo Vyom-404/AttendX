@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import cv2
 import numpy as np
 from insightface.app import FaceAnalysis
@@ -9,46 +11,81 @@ app = FaceAnalysis(
 )
 app.prepare(ctx_id=0, det_size=(640, 640))
 
+ENROLLMENT_DIR = Path("samples/enrollment")
+VERIFICATION_DIR = Path("samples/verification")
+MIN_ENROLLMENT_PHOTOS = 3
 
-def get_one_face(path):
-    image = cv2.imread(path)
+
+def get_live_embedding(path):
+    image = cv2.imread(str(path))
     if image is None:
-        raise ValueError(f"Could not read image: {path}")
+        return None, "could not read image"
 
     faces = app.get(image)
     if len(faces) != 1:
-        raise ValueError(f"Expected one face in {path}; found {len(faces)}")
+        return None, f"expected one face; found {len(faces)}"
 
-    return faces[0]
+    face = faces[0]
+    result = face.liveness
 
+    if result is None or result.status != "ok" or not result.is_live:
+        return None, "liveness rejected"
 
-def normalized_embedding(face):
     if face.embedding is None:
-        raise ValueError("No face embedding was produced")
+        return None, "no face embedding"
 
     embedding = face.embedding
-    return embedding / np.linalg.norm(embedding)
+    return embedding / np.linalg.norm(embedding), None
 
 
-reference = get_one_face("samples/reference.jpg")
+def make_template(student_id, folder):
+    embeddings = []
 
-if reference.liveness.status != "ok" or not reference.liveness.is_live:
-    raise ValueError("Reference photo did not pass liveness")
+    for path in sorted(folder.glob("*.jpg")):
+        embedding, error = get_live_embedding(path)
+        if error:
+            print(f"Enrollment skipped {path}: {error}")
+            continue
+        embeddings.append(embedding)
 
-reference_embedding = normalized_embedding(reference)
+    if len(embeddings) < MIN_ENROLLMENT_PHOTOS:
+        raise ValueError(
+            f"{student_id} has only {len(embeddings)} usable enrollment photos"
+        )
 
-for path in [
-    "samples/same_person.jpg",
-    "samples/other_person.jpg",
-    "samples/screen_replay.jpg",
-]:
-    face = get_one_face(path)
-    liveness = face.liveness
+    template = np.mean(embeddings, axis=0)
+    return template / np.linalg.norm(template)
 
-    if liveness.status != "ok" or not liveness.is_live:
-        print(f"{path}: rejected by liveness")
+
+templates = {}
+
+for folder in sorted(ENROLLMENT_DIR.iterdir()):
+    if folder.is_dir():
+        templates[folder.name] = make_template(folder.name, folder)
+        print(f"{folder.name}: enrollment complete")
+
+for student_folder in sorted(VERIFICATION_DIR.iterdir()):
+    if not student_folder.is_dir():
         continue
 
-    candidate_embedding = normalized_embedding(face)
-    score = float(np.dot(reference_embedding, candidate_embedding))
-    print(f"{path}: liveness passed; face similarity={score:.4f}")
+    expected_student = student_folder.name
+
+    for path in sorted(student_folder.glob("*.jpg")):
+        embedding, error = get_live_embedding(path)
+        if error:
+            print(f"{path}: rejected — {error}")
+            continue
+
+        scores = {
+            student_id: float(np.dot(template, embedding))
+            for student_id, template in templates.items()
+        }
+        ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+        score_text = ", ".join(
+            f"{student_id}={score:.4f}" for student_id, score in ranked
+        )
+
+        print(
+            f"{path}: expected={expected_student}, "
+            f"top_match={ranked[0][0]}, scores=({score_text})"
+        )
