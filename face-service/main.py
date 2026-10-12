@@ -28,14 +28,28 @@ def get_live_embedding(path):
     face = faces[0]
     result = face.liveness
 
-    if result is None or result.status != "ok" or not result.is_live:
-        return None, "liveness rejected"
+    if result is None:
+        return None, "liveness result missing"
 
-    if face.embedding is None:
-        return None, "no face embedding"
+    if result.status == "input_rejected":
+        reason = getattr(result, "reason", "insufficient image input")
+        return None, f"liveness input rejected: {reason}"
+
+    if result.status != "ok":
+        return None, f"liveness status: {result.status}"
+
+    if not result.is_live:
+        return None, f"liveness classified as fake; score={result.live_score:.4f}"
 
     embedding = face.embedding
-    return embedding / np.linalg.norm(embedding), None
+    if embedding is None:
+        return None, "face embedding unavailable"
+
+    norm = np.linalg.norm(embedding)
+    if norm == 0:
+        return None, "invalid face embedding"
+
+    return embedding / norm, None
 
 
 def make_template(student_id, folder):
@@ -43,9 +57,11 @@ def make_template(student_id, folder):
 
     for path in sorted(folder.glob("*.jpg")):
         embedding, error = get_live_embedding(path)
+
         if error:
             print(f"Enrollment skipped {path}: {error}")
             continue
+
         embeddings.append(embedding)
 
     if len(embeddings) < MIN_ENROLLMENT_PHOTOS:
@@ -54,7 +70,19 @@ def make_template(student_id, folder):
         )
 
     template = np.mean(embeddings, axis=0)
-    return template / np.linalg.norm(template)
+    norm = np.linalg.norm(template)
+
+    if norm == 0:
+        raise ValueError(f"{student_id} has an invalid enrollment template")
+
+    return template / norm
+
+
+if not ENROLLMENT_DIR.is_dir():
+    raise FileNotFoundError(f"Enrollment folder not found: {ENROLLMENT_DIR}")
+
+if not VERIFICATION_DIR.is_dir():
+    raise FileNotFoundError(f"Verification folder not found: {VERIFICATION_DIR}")
 
 
 templates = {}
@@ -64,6 +92,10 @@ for folder in sorted(ENROLLMENT_DIR.iterdir()):
         templates[folder.name] = make_template(folder.name, folder)
         print(f"{folder.name}: enrollment complete")
 
+if not templates:
+    raise ValueError(f"No student enrollment folders found in {ENROLLMENT_DIR}")
+
+
 for student_folder in sorted(VERIFICATION_DIR.iterdir()):
     if not student_folder.is_dir():
         continue
@@ -72,6 +104,7 @@ for student_folder in sorted(VERIFICATION_DIR.iterdir()):
 
     for path in sorted(student_folder.glob("*.jpg")):
         embedding, error = get_live_embedding(path)
+
         if error:
             print(f"{path}: rejected — {error}")
             continue
@@ -80,6 +113,7 @@ for student_folder in sorted(VERIFICATION_DIR.iterdir()):
             student_id: float(np.dot(template, embedding))
             for student_id, template in templates.items()
         }
+
         ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
         score_text = ", ".join(
             f"{student_id}={score:.4f}" for student_id, score in ranked
