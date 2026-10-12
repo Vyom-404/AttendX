@@ -3,3 +3,4 @@ __pycache__/
 *.py[cod]
 .env
 face-service/samples/
+api/node_modules/
