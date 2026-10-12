@@ -21,6 +21,9 @@ class FaceEngine:
         if image is None:
             return None, "could not read image"
 
+        return self.get_live_embedding_from_image(image)
+
+    def get_live_embedding_from_image(self, image):
         faces = self.app.get(image)
         if len(faces) != 1:
             return None, f"expected one face; found {len(faces)}"
@@ -51,6 +54,54 @@ class FaceEngine:
 
         return embedding / norm, None
 
+    def create_template_from_images(self, images, minimum_photos: int = 3):
+        embeddings = []
+        rejected = []
+
+        for index, image in enumerate(images):
+            embedding, error = self.get_live_embedding_from_image(image)
+            if error:
+                rejected.append({"index": index, "reason": error})
+                continue
+            embeddings.append(embedding)
+
+        if len(embeddings) < minimum_photos:
+            return (
+                None,
+                rejected,
+                f"only {len(embeddings)} usable images; need {minimum_photos}",
+            )
+
+        template = np.mean(embeddings, axis=0)
+        norm = np.linalg.norm(template)
+        if norm == 0:
+            return None, rejected, "invalid enrollment template"
+
+        return template / norm, rejected, None
+
+    def verify_image(self, image, template):
+        try:
+            template = np.asarray(template, dtype=np.float32)
+        except (TypeError, ValueError):
+            return None, "invalid enrollment template values"
+
+        if template.ndim != 1:
+            return None, "invalid enrollment template shape"
+        if not np.all(np.isfinite(template)):
+            return None, "invalid enrollment template values"
+
+        norm = np.linalg.norm(template)
+        if norm == 0:
+            return None, "invalid enrollment template"
+
+        embedding, error = self.get_live_embedding_from_image(image)
+        if error:
+            return None, error
+        if template.shape != embedding.shape:
+            return None, "invalid enrollment template shape"
+
+        return self.similarity(embedding, template / norm), None
+
     def make_template(
         self,
         student_id: str,
@@ -58,29 +109,29 @@ class FaceEngine:
         minimum_photos: int = 3,
     ):
         folder = Path(folder)
-        embeddings = []
+        images = []
+        paths = []
 
         for path in sorted(folder.glob("*.jpg")):
-            embedding, error = self.get_live_embedding(path)
-
-            if error:
-                print(f"Enrollment skipped {path}: {error}")
+            image = cv2.imread(str(path))
+            if image is None:
+                print(f"Enrollment skipped {path}: could not read image")
                 continue
+            images.append(image)
+            paths.append(path)
 
-            embeddings.append(embedding)
+        template, rejected, error = self.create_template_from_images(
+            images,
+            minimum_photos=minimum_photos,
+        )
+        for item in rejected:
+            print(f"Enrollment skipped {paths[item['index']]}: {item['reason']}")
 
-        if len(embeddings) < minimum_photos:
+        if error:
             raise ValueError(
-                f"{student_id} has only {len(embeddings)} usable enrollment photos"
+                f"{student_id} enrollment failed: {error}"
             )
-
-        template = np.mean(embeddings, axis=0)
-        norm = np.linalg.norm(template)
-
-        if norm == 0:
-            raise ValueError(f"{student_id} has an invalid enrollment template")
-
-        return template / norm
+        return template
 
     @staticmethod
     def similarity(first_embedding, second_embedding) -> float:
