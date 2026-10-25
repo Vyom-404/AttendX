@@ -35,8 +35,9 @@ export async function apiRequest<T>(
         ...options.headers,
       },
     });
-  } catch {
-    throw new ApiError(`Could not reach AttendX at ${API_BASE_URL}. Check that the API is running and the app URL is correct.`, 0);
+  } catch (reason) {
+    const nativeMessage = reason instanceof Error && reason.message ? ` (${reason.message})` : '';
+    throw new ApiError(`Could not reach AttendX at ${API_BASE_URL} while calling ${path}${nativeMessage}. Check that the API is running and reachable from your phone.`, 0);
   }
 
   const result = await response.json().catch(() => ({}));
