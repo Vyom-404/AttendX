@@ -89,6 +89,9 @@ async function main() {
     folder: requireText(entry.folder, "folder", index),
     studentId: requireText(entry.studentId, "studentId", index),
     name: requireText(entry.name, "name", index),
+    roomNumber: entry.roomNumber == null || entry.roomNumber === ""
+      ? null
+      : requireText(entry.roomNumber, "roomNumber", index),
   }));
   const studentIds = entries.map((entry) => entry.studentId);
   if (new Set(studentIds).size !== studentIds.length) {
@@ -103,6 +106,7 @@ async function main() {
       await saveStudentTemplate({
         studentId: entry.studentId,
         name: entry.name,
+        roomNumber: entry.roomNumber,
         embedding: result.template,
         acceptedImages: result.accepted_images,
         model: result.model,

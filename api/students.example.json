@@ -2,11 +2,13 @@
   {
     "folder": "student_01",
     "studentId": "student_01",
-    "name": "Student One"
+    "name": "Student One",
+    "roomNumber": ""
   },
   {
     "folder": "student_02",
     "studentId": "student_02",
-    "name": "Student Two"
+    "name": "Student Two",
+    "roomNumber": ""
   }
 ]
