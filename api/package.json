@@ -7,6 +7,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "import:students": "node scripts/import-students.js",
+    "sync:roster": "node scripts/sync-roster.js",
     "grant-admin": "node scripts/grant-admin.js"
   },
   "dependencies": {
