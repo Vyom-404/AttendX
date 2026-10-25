@@ -11,8 +11,8 @@ Think of AttendX as three programs that will work together:
 
 | Part | What it does | Current status |
 | --- | --- | --- |
-| `mobile/` | The Expo app students will use to sign in and take a selfie. | Not built yet. |
-| `api/` | The Node.js/Express backend. It handles authentication, sessions, location policy, attendance, and reports. | MVP API routes and MongoDB records are implemented. |
+| `mobile/` | The Expo app students use to view sessions and check their attendance; it also contains the hostel admin dashboard. | Expo app shell and live admin attendance dashboard are implemented. Google sign-in and camera/location capture are next. |
+| `api/` | The Node.js/Express backend. It handles authentication, sessions, location policy, attendance, and reports. | MVP API routes and MongoDB records are implemented, including optional room numbers in session rosters and exports. |
 | `face-service/` | The Python service that uses InsightFace to detect faces, check liveness, and make/compare face templates. | Local photo checks and HTTP endpoints are set up. |
 | MongoDB Atlas | Stores student accounts, face templates, hostel policy, sessions, attendance, and audit events. | Four named student templates are saved; attendance collections/indexes are created by the API. |
 
@@ -119,7 +119,8 @@ must use the college identity provider or another real authentication flow.
 The local `.env` has private development secrets; the actual values are not in
 this README or `.env.example`.
 
-Imported students receive the `student` role. To grant a student admin access
+Imported students receive the `student` role. The private manifest may include
+an optional `roomNumber` for admin rosters and exports. To grant a student admin access
 from a trusted local terminal after starting the API once, run:
 
 ```bash
@@ -133,8 +134,11 @@ roles.
 
 ### Hostel location and face threshold configuration
 
-The API does not contain a made-up hostel location. Add these values to the root
-`.env` after measuring the site and testing phone GPS:
+The local `.env` currently contains an initial Uniworld pin and a 150 m radius,
+with a 50 m maximum GPS accuracy and 30-second maximum fix age. Treat these as
+starting values and validate them with real phone GPS fixes inside and outside
+the hostel before relying on them. Keep the real location settings in the local
+`.env`; the tracked example uses placeholders:
 
 ```env
 HOSTEL_ID=hostel_demo
@@ -146,7 +150,7 @@ HOSTEL_MAX_ACCURACY_METERS=SET_ME
 HOSTEL_MAX_FIX_AGE_SECONDS=SET_ME
 ```
 
-Replace each `SET_ME` with a measured/configured value. Until the geofence is
+The API seeds a valid geofence into MongoDB on startup. Until the geofence is
 configured, attendance submissions fail safely. `FACE_MATCH_THRESHOLD` is
 currently `0.70` as a development starting point. It must be evaluated against
 genuine and different-person captures before relying on it for the demo.
@@ -215,6 +219,40 @@ The API creates its indexes and imported student-account records on startup.
 Open `http://localhost:3000/health`. A response with
 `"database":"connected"` means the backend can reach MongoDB.
 
+### 5. Run the Expo app
+
+In a separate terminal:
+
+```bash
+cd mobile
+cp .env.example .env
+```
+
+Set `EXPO_PUBLIC_API_URL` in `mobile/.env` to the computer running the API. Use
+`http://localhost:3000` for the web app on that same computer; for a phone on
+the same Wi-Fi, use the computer's local network IP instead. Then run:
+
+```bash
+npm start
+```
+
+The API allows the local Expo web origins on ports 8081 by default. If you open
+the web app using a LAN IP or a different port, add that full origin to
+`WEB_ORIGINS` in the root `.env`, separated from any existing origins by a comma.
+For Expo Go on a physical phone, the API must also listen on the local network:
+temporarily set `API_HOST=0.0.0.0` in the root `.env`, then use the computer's
+LAN IP in `mobile/.env` (for example, `http://192.168.1.20:3000`).
+
+Open the link in Expo Go or press `w` in the Expo terminal for the web version.
+The current sign-in screen is for local development and requires a student ID
+plus `DEV_LOGIN_SECRET` typed at runtime. Google sign-in is not connected yet.
+An account needs the server-side `admin` role to open the admin dashboard.
+
+To show room numbers in the roster, add an optional `roomNumber` to each entry
+in the private `api/students.json`, then run `npm run sync:roster` from `api/`.
+This updates roster details without reprocessing face photos. Leave
+`roomNumber` empty if a room is not assigned.
+
 ## Keep secrets and biometric data private
 
 - Put the real MongoDB connection string in the root `.env`; never paste it into
@@ -226,10 +264,9 @@ Open `http://localhost:3000/health`. A response with
 
 ## What is not built yet
 
-- The Expo mobile app and its camera flow.
+- Google sign-in and the Expo camera/location attendance submission flow.
 - A production college identity provider; current sign-in is for local development.
-- The Expo mobile app and its camera/location flow.
-- Real hostel center/radius/accuracy settings and face-threshold evaluation.
+- Room numbers have not yet been filled into the private student manifest.
 - Physical-device end-to-end verification, deployment, and a full evaluation report.
 - Production deployment and face-match threshold calibration with a larger,
   representative photo set.
