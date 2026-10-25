@@ -59,16 +59,20 @@ export async function connectToDatabase() {
 async function syncImportedStudents() {
   const hostelId = process.env.HOSTEL_ID || process.env.DEFAULT_HOSTEL_ID || "hostel_demo";
   const importedStudents = await database.collection("students")
-    .find({}, { projection: { studentId: 1, name: 1, status: 1 } })
+    .find({}, { projection: { studentId: 1, name: 1, status: 1, roomNumber: 1 } })
     .toArray();
   const users = database.collection("users");
 
   for (const student of importedStudents) {
     const now = new Date();
+    const userFields = { name: student.name, status: student.status || "active", updatedAt: now };
+    if (typeof student.roomNumber === "string" && student.roomNumber.trim()) {
+      userFields.roomNumber = student.roomNumber.trim();
+    }
     await users.updateOne(
       { studentId: student.studentId },
       {
-        $set: { name: student.name, status: student.status || "active", updatedAt: now },
+        $set: userFields,
         $setOnInsert: {
           roles: ["student"],
           hostelId,
