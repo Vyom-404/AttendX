@@ -4,6 +4,7 @@ import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
+import { File } from 'expo-file-system';
 
 import { apiRequest } from '@/lib/api';
 import { useAuth } from '@/providers/auth-provider';
@@ -80,7 +81,7 @@ export default function CaptureScreen() {
           const response = await fetch(capture.uri);
           form.append('captures', await response.blob(), capture.name);
         } else {
-          form.append('captures', { uri: capture.uri, name: capture.name, type: 'image/jpeg' } as unknown as Blob);
+          form.append('captures', new File(capture.uri), capture.name);
         }
       }
 

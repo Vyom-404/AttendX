@@ -1,3 +1,5 @@
+import { fetch as expoFetch } from 'expo/fetch';
+
 const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/$/, '');
 
 export type ApiUser = {
@@ -27,7 +29,8 @@ export async function apiRequest<T>(
 ): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    const requestFetch = options.body instanceof FormData ? expoFetch : fetch;
+    response = await requestFetch(`${API_BASE_URL}${path}`, {
       ...options,
       headers: {
         ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
