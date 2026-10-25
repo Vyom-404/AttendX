@@ -6,11 +6,13 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "import:students": "node scripts/import-students.js"
+    "import:students": "node scripts/import-students.js",
+    "grant-admin": "node scripts/grant-admin.js"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
-    "mongodb": "^6.18.0"
+    "mongodb": "^6.18.0",
+    "multer": "^2.5.0"
   }
 }
