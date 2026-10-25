@@ -11,7 +11,7 @@ Think of AttendX as three programs that will work together:
 
 | Part | What it does | Current status |
 | --- | --- | --- |
-| `mobile/` | The Expo app students use to view sessions and check their attendance; it also contains the hostel admin dashboard. | Expo app shell and live admin attendance dashboard are implemented. Google sign-in and camera/location capture are next. |
+| `mobile/` | The Expo app students use to view sessions and check their attendance; it also contains the hostel admin dashboard. | Student camera capture and foreground location submission are integrated with the API. Google sign-in and physical-device flow validation remain. |
 | `api/` | The Node.js/Express backend. It handles authentication, sessions, location policy, attendance, and reports. | MVP API routes and MongoDB records are implemented, including optional room numbers in session rosters and exports. |
 | `face-service/` | The Python service that uses InsightFace to detect faces, check liveness, and make/compare face templates. | Local photo checks and HTTP endpoints are set up. |
 | MongoDB Atlas | Stores student accounts, face templates, hostel policy, sessions, attendance, and audit events. | Four named student templates are saved; attendance collections/indexes are created by the API. |
@@ -275,9 +275,8 @@ This updates roster details without reprocessing face photos. Leave
 
 ## What is not built yet
 
-- Google sign-in and the Expo camera/location attendance submission flow.
+- Google sign-in and physical-device end-to-end validation of camera/location attendance.
 - A production college identity provider; current sign-in is for local development.
 - Room numbers have not yet been filled into the private student manifest.
-- Physical-device end-to-end verification, deployment, and a full evaluation report.
-- Production deployment and face-match threshold calibration with a larger,
-  representative photo set.
+- Production deployment and a full evaluation report.
+- Face-match threshold calibration with a larger, representative photo set.
