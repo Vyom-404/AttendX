@@ -17,7 +17,6 @@ try {
   const user = await users.findOne({ studentId, status: "active" });
   if (!user) throw new Error(`No active account found for ${studentId}`);
   if (!user.hostelId) throw new Error(`No hostel assignment is configured for ${studentId}`);
-
   await users.updateOne(
     { studentId },
     {

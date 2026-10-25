@@ -130,7 +130,18 @@ npm run grant-admin -- student_01
 
 Replace `student_01` with the account authorized to administer the hostel. The
 admin's hostel assignment is stored server-side; the client cannot grant itself
-roles.
+roles. Use this only when the student account should also have admin privileges.
+
+To create a separate administrator account, use a distinct `admin_...` ID. This
+command moves the supplied email link off the student account while leaving its
+student role intact:
+
+```bash
+npm run create-admin -- admin_vyom "Vyom Gupta" YOUR_GOOGLE_EMAIL student_01
+```
+
+The admin account can use the temporary development sign-in with `admin_vyom`.
+Google email sign-in will work after the Google authentication route is added.
 
 ### Hostel location and face threshold configuration
 
