@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -37,9 +37,8 @@ export default function StudentHome() {
     }
   }, [token]);
 
-  // Load the current session and history when the screen opens; updates follow the API response.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { loadData(); }, [loadData]);
+  // Refresh after returning from the camera flow so a successful check-in appears immediately.
+  useFocusEffect(useCallback(() => { void loadData(); }, [loadData]));
 
   function logout() {
     signOut();
@@ -64,7 +63,7 @@ export default function StudentHome() {
             <>
               <Text style={styles.sessionTime}>{new Date(session.startAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} – {new Date(session.endAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</Text>
               <View style={styles.notice}><Text style={styles.noticeIcon}>i</Text><Text style={styles.noticeText}>Attendance uses an in-app camera capture and your current hostel location.</Text></View>
-              <View style={styles.nextStep}><Text style={styles.nextStepTitle}>Camera check is the next build step</Text><Text style={styles.nextStepText}>This app is connected to your live session and attendance history. We’ll add the camera and location submission flow next.</Text></View>
+              <Pressable accessibilityRole="button" onPress={() => router.push('/capture')} style={styles.checkInButton}><Text style={styles.checkInButtonText}>Open camera to check in</Text></Pressable>
             </>
           ) : <Text style={styles.emptyText}>When an admin opens a session, it will appear here with its attendance window.</Text>}
         </View>
@@ -83,6 +82,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.paper }, page: { width: '100%', maxWidth: 920, alignSelf: 'center', padding: 22, paddingBottom: 48 },
   topbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 33 }, brand: { fontSize: 21, fontWeight: '800', color: C.ink, letterSpacing: -0.8 }, kicker: { fontSize: 9, letterSpacing: 1.6, color: C.muted, fontWeight: '800', marginTop: 4 }, avatar: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#E0EAFE', alignItems: 'center', justifyContent: 'center' }, avatarText: { color: C.blue, fontWeight: '800', fontSize: 17 },
   greeting: { fontSize: 15, color: C.muted }, name: { fontSize: 31, lineHeight: 38, letterSpacing: -1, fontWeight: '800', color: C.ink, marginTop: 2 }, studentId: { color: C.muted, fontSize: 12, marginTop: 4, marginBottom: 23 },
-  sessionCard: { backgroundColor: C.navy, borderRadius: 22, padding: 21, marginBottom: 29, overflow: 'hidden' }, cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }, cardEyebrow: { color: '#AFC1D3', fontSize: 9, fontWeight: '800', letterSpacing: 1.3 }, sessionTitle: { color: C.white, fontSize: 21, lineHeight: 27, fontWeight: '700', marginTop: 8 }, statusDot: { width: 9, height: 9, borderRadius: 5, marginTop: 5 }, sessionTime: { color: '#DBE5EF', fontSize: 13, marginTop: 8 }, notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderTopWidth: 1, borderColor: '#31485E', marginTop: 20, paddingTop: 16 }, noticeIcon: { color: '#B4D0FF', borderColor: '#6480A0', borderWidth: 1, borderRadius: 8, width: 17, height: 17, textAlign: 'center', fontWeight: '800', fontSize: 11, overflow: 'hidden' }, noticeText: { color: '#D0DCE8', fontSize: 12, lineHeight: 18, flex: 1 }, nextStep: { backgroundColor: '#1B354E', borderRadius: 13, padding: 14, marginTop: 17 }, nextStepTitle: { color: C.white, fontSize: 12, fontWeight: '700' }, nextStepText: { color: '#B5C6D8', fontSize: 11, lineHeight: 17, marginTop: 5 }, emptyText: { color: '#B7C4D2', fontSize: 13, lineHeight: 19, marginTop: 15 },
+  sessionCard: { backgroundColor: C.navy, borderRadius: 22, padding: 21, marginBottom: 29, overflow: 'hidden' }, cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }, cardEyebrow: { color: '#AFC1D3', fontSize: 9, fontWeight: '800', letterSpacing: 1.3 }, sessionTitle: { color: C.white, fontSize: 21, lineHeight: 27, fontWeight: '700', marginTop: 8 }, statusDot: { width: 9, height: 9, borderRadius: 5, marginTop: 5 }, sessionTime: { color: '#DBE5EF', fontSize: 13, marginTop: 8 }, notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderTopWidth: 1, borderColor: '#31485E', marginTop: 20, paddingTop: 16 }, noticeIcon: { color: '#B4D0FF', borderColor: '#6480A0', borderWidth: 1, borderRadius: 8, width: 17, height: 17, textAlign: 'center', fontWeight: '800', fontSize: 11, overflow: 'hidden' }, noticeText: { color: '#D0DCE8', fontSize: 12, lineHeight: 18, flex: 1 }, checkInButton: { backgroundColor: '#FFFFFF', borderRadius: 13, padding: 15, marginTop: 18, alignItems: 'center' }, checkInButtonText: { color: C.navy, fontSize: 14, fontWeight: '800' }, emptyText: { color: '#B7C4D2', fontSize: 13, lineHeight: 19, marginTop: 15 },
   sectionHeading: { marginBottom: 13 }, sectionTitle: { color: C.ink, fontWeight: '800', fontSize: 19, letterSpacing: -0.4 }, sectionSub: { color: C.muted, fontSize: 12, marginTop: 4 }, error: { color: '#B42318', backgroundColor: '#FFF0EE', padding: 12, borderRadius: 10, marginBottom: 12 }, emptyCard: { backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 18 }, emptyTitle: { color: C.ink, fontSize: 14, fontWeight: '700' }, recordRow: { backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 15, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 9 }, recordIcon: { width: 34, height: 34, backgroundColor: '#E4F7EF', borderRadius: 12, alignItems: 'center', justifyContent: 'center' }, check: { color: C.green, fontWeight: '900', fontSize: 16 }, recordTitle: { color: C.ink, fontWeight: '700', fontSize: 13 }, recordDate: { color: C.muted, fontSize: 10, marginTop: 4 }, presentPill: { color: C.green, backgroundColor: '#E4F7EF', borderRadius: 10, overflow: 'hidden', paddingHorizontal: 9, paddingVertical: 5, fontSize: 10, fontWeight: '800' },
 });
