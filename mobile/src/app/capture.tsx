@@ -1,11 +1,11 @@
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 
-import { apiRequest, ApiError } from '@/lib/api';
+import { apiRequest } from '@/lib/api';
 import { useAuth } from '@/providers/auth-provider';
 
 type Capture = { uri: string; name: string };
@@ -17,11 +17,13 @@ export default function CaptureScreen() {
   const { token } = useAuth();
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
+  const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions();
   const [cameraReady, setCameraReady] = useState(false);
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState('');
   const [success, setSuccess] = useState(false);
+  const [locationSettingsNeeded, setLocationSettingsNeeded] = useState(false);
 
   async function captureSequence() {
     if (!cameraRef.current || !cameraReady || working) return;
@@ -49,8 +51,16 @@ export default function CaptureScreen() {
     setWorking(true);
     setMessage('Getting a fresh location and checking your attendance…');
     try {
-      const permissionResult = await Location.requestForegroundPermissionsAsync();
-      if (!permissionResult.granted) throw new Error('Location permission is needed to check that you are at the hostel.');
+      const permissionResult = locationPermission?.granted
+        ? locationPermission
+        : await requestLocationPermission();
+      if (!permissionResult.granted) {
+        setLocationSettingsNeeded(!permissionResult.canAskAgain);
+        throw new Error(permissionResult.canAskAgain
+          ? 'Location permission is needed to check that you are at the hostel.'
+          : 'Location permission is blocked. Open app settings and allow location while using the app.');
+      }
+      setLocationSettingsNeeded(false);
       const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       if (!location.coords.accuracy || location.coords.accuracy <= 0) {
         throw new Error('Your phone could not get an accurate location. Move near a window or outdoors and try again.');
@@ -78,9 +88,7 @@ export default function CaptureScreen() {
       setSuccess(true);
       setMessage('Attendance marked successfully.');
     } catch (reason) {
-      const detail = reason instanceof ApiError && reason.status === 0
-        ? 'Could not reach AttendX. Check the API connection and try again.'
-        : reason instanceof Error ? reason.message : 'Could not submit attendance. Please try again.';
+      const detail = reason instanceof Error ? reason.message : 'Could not submit attendance. Please try again.';
       setMessage(detail);
     } finally {
       setWorking(false);
@@ -111,6 +119,15 @@ export default function CaptureScreen() {
         <Text style={styles.title}>{success ? 'You’re checked in' : 'Take your live selfie'}</Text>
         <Text style={styles.copy}>{success ? 'Your identity and hostel location were checked by AttendX.' : 'Face the camera in clear, even lighting. Three frames are captured directly from the front camera.'}</Text>
 
+        {!success && <View style={styles.locationStatus}>
+          <Text style={styles.locationStatusTitle}>Location access</Text>
+          <Text style={styles.locationStatusText}>
+            {locationPermission === null ? 'Checking permission…' : locationPermission.granted
+              ? 'Allowed. The system prompt appears only when location access has not already been granted.'
+              : 'Needed when you submit. Android will ask when you tap “Check location & submit”.'}
+          </Text>
+        </View>}
+
         {!success && <View style={styles.cameraFrame}>
           <CameraView
             ref={cameraRef}
@@ -123,6 +140,10 @@ export default function CaptureScreen() {
         </View>}
 
         {!!message && <Text accessibilityRole="alert" style={[styles.message, success && styles.success]}>{message}</Text>}
+
+        {locationSettingsNeeded && <Pressable onPress={() => Linking.openSettings()} style={styles.secondaryButton}>
+          <Text style={styles.secondaryText}>Open app settings</Text>
+        </Pressable>}
 
         {!success && captures.length < 3 && <Pressable disabled={!cameraReady || working} onPress={captureSequence} style={[styles.primaryButton, (!cameraReady || working) && styles.disabled]}>
           {working ? <ActivityIndicator color={COLORS.white} /> : <Text style={styles.primaryButtonText}>{cameraReady ? 'Capture 3 frames' : 'Starting camera…'}</Text>}
@@ -137,7 +158,7 @@ export default function CaptureScreen() {
         </>}
 
         {success && <Pressable onPress={() => router.replace('/student')} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Back to attendance</Text></Pressable>}
-        <Text style={styles.privacyNote}>Location is requested only when you submit. The server checks it against the hostel geofence.</Text>
+        <Text style={styles.privacyNote}>Your current location is checked by the server against the hostel geofence when you submit.</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -156,6 +177,9 @@ const styles = StyleSheet.create({
   eyebrow: { color: COLORS.blue, fontSize: 10, letterSpacing: 1.5, fontWeight: '800', marginBottom: 7 },
   title: { color: COLORS.ink, fontWeight: '800', fontSize: 27, letterSpacing: -0.7 },
   copy: { color: COLORS.muted, fontSize: 14, lineHeight: 21, marginTop: 8, marginBottom: 18 },
+  locationStatus: { backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.line, borderRadius: 13, padding: 13, marginBottom: 15 },
+  locationStatusTitle: { color: COLORS.ink, fontSize: 12, fontWeight: '800' },
+  locationStatusText: { color: COLORS.muted, fontSize: 12, lineHeight: 17, marginTop: 4 },
   cameraFrame: { height: 440, maxHeight: '58%', minHeight: 300, borderRadius: 24, overflow: 'hidden', backgroundColor: '#091522', justifyContent: 'center', alignItems: 'center' },
   camera: { ...StyleSheet.absoluteFill },
   faceGuide: { width: 220, height: 290, borderRadius: 130, borderWidth: 2, borderColor: 'rgba(255,255,255,0.85)' },
