@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
+    "dev": "nodemon --watch src --ext js,mjs,json src/server.js",
     "import:students": "node scripts/import-students.js",
     "sync:roster": "node scripts/sync-roster.js",
     "grant-admin": "node scripts/grant-admin.js",
@@ -16,5 +16,8 @@
     "express": "^5.1.0",
     "mongodb": "^6.18.0",
     "multer": "^2.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }
