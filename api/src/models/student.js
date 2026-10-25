@@ -47,6 +47,7 @@ export async function saveStudentTemplate({
         status: "active",
         faceTemplate: {
           model,
+          preprocessingVersion: "insightface-default-1",
           dimension: TEMPLATE_DIMENSION,
           embedding: vector,
           acceptedImages,
@@ -55,6 +56,20 @@ export async function saveStudentTemplate({
         updatedAt: now,
       },
       $setOnInsert: { createdAt: now },
+    },
+    { upsert: true },
+  );
+
+  await getDatabase().collection("users").updateOne(
+    { studentId: cleanStudentId },
+    {
+      $set: { name: cleanName, status: "active", updatedAt: now },
+      $setOnInsert: {
+        roles: ["student"],
+        hostelId: process.env.HOSTEL_ID || process.env.DEFAULT_HOSTEL_ID || "hostel_demo",
+        hostelIds: [],
+        createdAt: now,
+      },
     },
     { upsert: true },
   );
