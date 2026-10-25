@@ -152,7 +152,7 @@ async function sessionRoster(session) {
   const [users, records] = await Promise.all([
     database.collection("users")
       .find({ hostelId: session.hostelId, roles: "student", status: "active" }, {
-        projection: { _id: 0, studentId: 1, name: 1 },
+        projection: { _id: 0, studentId: 1, name: 1, roomNumber: 1 },
       })
       .sort({ name: 1 })
       .toArray(),
@@ -167,6 +167,7 @@ async function sessionRoster(session) {
       attendanceId: record?._id || null,
       studentId: user.studentId,
       name: user.name,
+      roomNumber: user.roomNumber || null,
       markedAt: record?.markedAt || null,
       status: record?.status || "absent",
     };
@@ -231,8 +232,8 @@ router.get("/admin/sessions/:id/export", requireAuthentication, requireRole("adm
   const session = await getSessionForAdmin(request);
   const roster = await sessionRoster(session);
   const lines = [
-    ["studentId", "name", "session", "markedAt", "status"].map(csvCell).join(","),
-    ...roster.map((record) => [record.studentId, record.name, session.title, record.markedAt?.toISOString() || "", record.status].map(csvCell).join(",")),
+    ["studentId", "name", "roomNumber", "session", "markedAt", "status"].map(csvCell).join(","),
+    ...roster.map((record) => [record.studentId, record.name, record.roomNumber || "", session.title, record.markedAt?.toISOString() || "", record.status].map(csvCell).join(",")),
   ];
   await writeAuditEvent({
     actorId: request.user.studentId,
