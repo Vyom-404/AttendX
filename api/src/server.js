@@ -12,12 +12,15 @@ const [{ default: app }, { closeDatabase, connectToDatabase }] = await Promise.a
 ]);
 
 const port = Number(process.env.PORT || 3000);
+const host = process.env.API_HOST || "127.0.0.1";
 
 try {
   await connectToDatabase();
-  const server = app.listen(port, () => {
-    console.log(`AttendX API listening at http://localhost:${port}`);
+  const server = app.listen(port, host, () => {
+    console.log(`AttendX API listening at http://${host}:${port}`);
   });
+  server.requestTimeout = 30_000;
+  server.headersTimeout = 25_000;
 
   async function shutDown(signal) {
     console.log(`${signal} received; shutting down AttendX API`);
