@@ -96,18 +96,28 @@ async function main() {
   }
 
   await connectToDatabase();
+  const failures = [];
   for (const entry of entries) {
-    const result = await createTemplate(entry);
-    await saveStudentTemplate({
-      studentId: entry.studentId,
-      name: entry.name,
-      embedding: result.template,
-      acceptedImages: result.accepted_images,
-      model: result.model,
-    });
-    console.log(
-      `${entry.studentId}: template saved (${result.accepted_images} accepted photos; model ${result.model})`,
-    );
+    try {
+      const result = await createTemplate(entry);
+      await saveStudentTemplate({
+        studentId: entry.studentId,
+        name: entry.name,
+        embedding: result.template,
+        acceptedImages: result.accepted_images,
+        model: result.model,
+      });
+      console.log(
+        `${entry.studentId}: template saved (${result.accepted_images} accepted photos; model ${result.model})`,
+      );
+    } catch (error) {
+      failures.push(entry.studentId);
+      console.error(`${entry.studentId}: import failed — ${error.message}`);
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`Import incomplete for: ${failures.join(", ")}`);
   }
 }
 
