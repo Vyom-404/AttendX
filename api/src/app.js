@@ -9,12 +9,29 @@ import attendanceRoutes from "./routes/attendance.js";
 import adminRoutes from "./routes/admin.js";
 
 const app = express();
+const allowedWebOrigins = new Set(
+  (process.env.WEB_ORIGINS || "http://localhost:8081,http://127.0.0.1:8081")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
 
 app.disable("x-powered-by");
 app.use(requestIdMiddleware);
 app.use((request, response, next) => {
   response.setHeader("X-Content-Type-Options", "nosniff");
   response.setHeader("Referrer-Policy", "no-referrer");
+  next();
+});
+app.use((request, response, next) => {
+  const origin = request.get("origin");
+  if (origin && allowedWebOrigins.has(origin)) {
+    response.setHeader("Access-Control-Allow-Origin", origin);
+    response.setHeader("Vary", "Origin");
+    response.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
+    response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+  }
+  if (request.method === "OPTIONS") return response.sendStatus(204);
   next();
 });
 app.use(express.json({ limit: "32kb" }));
