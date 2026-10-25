@@ -9,12 +9,16 @@ const TEMPLATE_DIMENSION = 512;
 export async function saveStudentTemplate({
   studentId,
   name,
+  roomNumber,
   embedding,
   acceptedImages,
   model = "buffalo_l",
 }) {
   const cleanStudentId = requireText(studentId, "studentId", 100);
   const cleanName = requireText(name, "name", 200);
+  const cleanRoomNumber = roomNumber == null || roomNumber === ""
+    ? null
+    : requireText(roomNumber, "roomNumber", 30);
 
   if (!Array.isArray(embedding) || embedding.length !== TEMPLATE_DIMENSION) {
     throw new TypeError(`embedding must contain ${TEMPLATE_DIMENSION} numbers`);
@@ -38,32 +42,37 @@ export async function saveStudentTemplate({
 
   const now = new Date();
   const students = getDatabase().collection("students");
+  const studentFields = {
+    name: cleanName,
+    status: "active",
+    faceTemplate: {
+      model,
+      preprocessingVersion: "insightface-default-1",
+      dimension: TEMPLATE_DIMENSION,
+      embedding: vector,
+      acceptedImages,
+      updatedAt: now,
+    },
+    updatedAt: now,
+  };
+  if (cleanRoomNumber) studentFields.roomNumber = cleanRoomNumber;
 
   await students.updateOne(
     { studentId: cleanStudentId },
     {
-      $set: {
-        name: cleanName,
-        status: "active",
-        faceTemplate: {
-          model,
-          preprocessingVersion: "insightface-default-1",
-          dimension: TEMPLATE_DIMENSION,
-          embedding: vector,
-          acceptedImages,
-          updatedAt: now,
-        },
-        updatedAt: now,
-      },
+      $set: studentFields,
       $setOnInsert: { createdAt: now },
     },
     { upsert: true },
   );
 
+  const userFields = { name: cleanName, status: "active", updatedAt: now };
+  if (cleanRoomNumber) userFields.roomNumber = cleanRoomNumber;
+
   await getDatabase().collection("users").updateOne(
     { studentId: cleanStudentId },
     {
-      $set: { name: cleanName, status: "active", updatedAt: now },
+      $set: userFields,
       $setOnInsert: {
         roles: ["student"],
         hostelId: process.env.HOSTEL_ID || process.env.DEFAULT_HOSTEL_ID || "hostel_demo",
