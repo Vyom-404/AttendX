@@ -119,6 +119,9 @@ but the mobile Google button, OAuth client setup, and account email links still
 need to be completed before switching the app to Google sign-in.
 The local `.env` has private development secrets; the actual values are not in
 this README or `.env.example`.
+When configuring Google, put its OAuth client IDs in the server root `.env` as
+`GOOGLE_OAUTH_CLIENT_IDS`, separated by commas. Keep any OAuth client secret on
+the server and out of the mobile app.
 
 Imported students receive the `student` role. The private manifest may include
 an optional `roomNumber` for admin rosters and exports. To grant a student admin access
@@ -268,7 +271,9 @@ LAN IP in `mobile/.env` (for example, `http://192.168.1.20:3000`).
 
 Open the link in Expo Go or press `w` in the Expo terminal for the web version.
 The current sign-in screen is for local development and requires a student ID
-plus `DEV_LOGIN_SECRET` typed at runtime. Google sign-in is not connected yet.
+plus `DEV_LOGIN_SECRET` typed at runtime. Mobile Google sign-in is not connected
+yet. Expo's native Google sign-in libraries require an EAS development build;
+they do not run inside Expo Go.
 An account needs the server-side `admin` role to open the admin dashboard.
 
 To show room numbers in the roster, add an optional `roomNumber` to each entry
