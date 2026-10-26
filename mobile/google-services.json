@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "990727791021",
+    "project_id": "attendx-47176",
+    "storage_bucket": "attendx-47176.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:990727791021:android:41a683066036487a6f8124",
+        "android_client_info": {
+          "package_name": "com.vyom.attendx"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "990727791021-ofuoj4j7thc0j73svb6fup492is30hij.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAfr4mnXnM0HCZkBQTyU9i5jN7vx5gCzNE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "990727791021-ofuoj4j7thc0j73svb6fup492is30hij.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
