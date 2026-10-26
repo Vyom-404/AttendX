@@ -1,6 +1,6 @@
 # AttendX mobile app
 
-This Expo app contains the student home screen and hostel admin dashboard. It currently uses the backend's development-only sign-in route. Google sign-in is still to be added. Students can use the in-app front camera and foreground location to submit attendance to the API.
+This Expo app contains the student home screen and hostel admin dashboard. It currently uses the backend's development-only sign-in route. The API is ready to verify Firebase ID tokens for Google sign-in, but the mobile Firebase sign-in flow is still to be added. Students can use the in-app front camera and foreground location to submit attendance to the API.
 
 ## Run it locally
 

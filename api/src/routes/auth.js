@@ -1,14 +1,13 @@
 import { Router } from "express";
-import { OAuth2Client } from "google-auth-library";
 import { getDatabase } from "../config/database.js";
 import { ApiError } from "../lib/api-error.js";
 import { rateLimit } from "../middleware/rate-limit.js";
+import { getFirebaseAuth } from "../security/firebase-auth.js";
 import { createAccessToken, equalSecret } from "../security/tokens.js";
 import { writeAuditEvent } from "../services/audit.js";
 
 const router = Router();
 const loginLimit = rateLimit({ windowMs: 60_000, maxRequests: 10 });
-const googleClient = new OAuth2Client();
 
 router.post("/dev-session", loginLimit, async (request, response) => {
   if (process.env.NODE_ENV === "production" || process.env.ENABLE_DEV_LOGIN !== "true") {
@@ -49,30 +48,35 @@ router.post("/dev-session", loginLimit, async (request, response) => {
   });
 });
 
-router.post("/google-session", loginLimit, async (request, response) => {
+router.post("/firebase-session", loginLimit, async (request, response) => {
   const idToken = request.body?.idToken;
   if (typeof idToken !== "string" || idToken.length < 20 || idToken.length > 10_000) {
-    throw new ApiError(400, "VALIDATION_ERROR", "A Google ID token is required.");
+    throw new ApiError(400, "VALIDATION_ERROR", "A Firebase ID token is required.");
   }
 
-  const audiences = (process.env.GOOGLE_OAUTH_CLIENT_IDS || "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-  if (audiences.length === 0) {
-    throw new ApiError(503, "GOOGLE_AUTH_NOT_CONFIGURED", "Google sign-in is not configured yet.");
+  let firebaseAuth;
+  try {
+    firebaseAuth = getFirebaseAuth();
+  } catch (error) {
+    if (error.code === "FIREBASE_AUTH_NOT_CONFIGURED") {
+      throw new ApiError(503, "FIREBASE_AUTH_NOT_CONFIGURED", "Firebase sign-in is not configured yet.");
+    }
+    throw error;
   }
 
   let payload;
   try {
-    const ticket = await googleClient.verifyIdToken({ idToken, audience: audiences });
-    payload = ticket.getPayload();
+    payload = await firebaseAuth.verifyIdToken(idToken, true);
   } catch {
-    throw new ApiError(401, "AUTH_REQUIRED", "Google sign-in was not accepted.");
+    throw new ApiError(401, "AUTH_REQUIRED", "Firebase sign-in was not accepted.");
   }
 
   const googleEmail = payload?.email?.trim().toLowerCase();
-  if (!googleEmail || payload.email_verified !== true) {
+  if (
+    !googleEmail ||
+    payload.email_verified !== true ||
+    payload.firebase?.sign_in_provider !== "google.com"
+  ) {
     throw new ApiError(401, "AUTH_REQUIRED", "Google sign-in was not accepted.");
   }
 
@@ -87,7 +91,7 @@ router.post("/google-session", loginLimit, async (request, response) => {
   await writeAuditEvent({
     actorId: user.studentId,
     actorRole: user.roles?.includes("admin") ? "admin" : "student",
-    eventType: "auth.google_session",
+    eventType: "auth.firebase_google_session",
     outcome: "success",
     requestId: request.requestId,
   });

@@ -11,7 +11,7 @@ Think of AttendX as three programs that will work together:
 
 | Part | What it does | Current status |
 | --- | --- | --- |
-| `mobile/` | The Expo app students use to view sessions and check their attendance; it also contains the hostel admin dashboard. | Student camera capture and foreground location submission are integrated with the API. Google sign-in and physical-device flow validation remain. |
+| `mobile/` | The Expo app students use to view sessions and check their attendance; it also contains the hostel admin dashboard. | Student camera capture and foreground location submission are integrated with the API. Firebase-backed Google sign-in and physical-device flow validation remain. |
 | `api/` | The Node.js/Express backend. It handles authentication, sessions, location policy, attendance, and reports. | MVP API routes and MongoDB records are implemented, including optional room numbers in session rosters and exports. |
 | `face-service/` | The Python service that uses InsightFace to detect faces, check liveness, and make/compare face templates. | Local photo checks and HTTP endpoints are set up. |
 | MongoDB Atlas | Stores student accounts, face templates, hostel policy, sessions, attendance, and audit events. | Four named student templates are saved; attendance collections/indexes are created by the API. |
@@ -114,14 +114,14 @@ audited without storing their uploaded images.
 The app still uses the **development-only** sign-in screen. Its server route
 requires `ENABLE_DEV_LOGIN=true` and the server-only `DEV_LOGIN_SECRET` in the
 root `.env`, and issues a short-lived signed token. Never put this shared secret
-in the Expo app. The API's Google ID-token verification route is now in place,
-but the mobile Google button, OAuth client setup, and account email links still
-need to be completed before switching the app to Google sign-in.
+in the Expo app. The API now verifies Firebase ID tokens and accepts only
+Google sign-ins linked to active AttendX accounts. The mobile Firebase sign-in
+flow and Firebase project setup still need to be completed.
 The local `.env` has private development secrets; the actual values are not in
-this README or `.env.example`.
-When configuring Google, put its OAuth client IDs in the server root `.env` as
-`GOOGLE_OAUTH_CLIENT_IDS`, separated by commas. Keep any OAuth client secret on
-the server and out of the mobile app.
+this README or `.env.example`. Configure `FIREBASE_PROJECT_ID`,
+`FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY` in the server root `.env`
+using a Firebase service account. Keep the private key on the server; never put
+it in the Expo app or commit it.
 
 Imported students receive the `student` role. The private manifest may include
 an optional `roomNumber` for admin rosters and exports. To grant a student admin access
@@ -154,10 +154,9 @@ npm run link-google-email -- student_06 PERSONS_GOOGLE_EMAIL
 ```
 
 Each Google email can belong to only one AttendX account. The API accepts a
-Google ID token only when its verified email is linked to an active user; it
-does not create accounts during sign-in. Set
-the OAuth client IDs (comma-separated) in `GOOGLE_OAUTH_CLIENT_IDS` in the
-server's root `.env` before enabling sign-in.
+Firebase ID token only when Firebase confirms a Google sign-in with a verified
+email linked to an active user; it does not create AttendX accounts during
+sign-in.
 
 ### Hostel location and face threshold configuration
 
@@ -272,9 +271,9 @@ LAN IP in `mobile/.env` (for example, `http://192.168.1.20:3000`).
 
 Open the link in Expo Go or press `w` in the Expo terminal for the web version.
 The current sign-in screen is for local development and requires a student ID
-plus `DEV_LOGIN_SECRET` typed at runtime. Mobile Google sign-in is not connected
-yet. Expo's native Google sign-in libraries require an EAS development build;
-they do not run inside Expo Go.
+plus `DEV_LOGIN_SECRET` typed at runtime. The Google-to-Firebase sign-in flow
+is not connected yet. Expo's native Google sign-in libraries require an EAS
+development build; they do not run inside Expo Go.
 An account needs the server-side `admin` role to open the admin dashboard.
 
 To show room numbers in the roster, add an optional `roomNumber` to each entry
@@ -293,7 +292,7 @@ This updates roster details without reprocessing face photos. Leave
 
 ## What is not built yet
 
-- Google sign-in and physical-device end-to-end validation of camera/location attendance.
+- Connecting the mobile Google sign-in screen to Firebase Authentication and validating sign-in on a physical device.
 - A production college identity provider; current sign-in is for local development.
 - Room numbers have not yet been filled into the private student manifest.
 - Production deployment and a full evaluation report.

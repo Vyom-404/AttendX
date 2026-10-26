@@ -15,11 +15,14 @@
   "dependencies": {
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
-    "google-auth-library": "^11.3.1",
+    "firebase-admin": "^14.5.0",
     "mongodb": "^6.18.0",
     "multer": "^2.5.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
