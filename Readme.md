@@ -142,7 +142,18 @@ npm run create-admin -- admin_vyom "Vyom Gupta" YOUR_GOOGLE_EMAIL student_01
 ```
 
 The admin account can use the temporary development sign-in with `admin_vyom`.
-Google email sign-in will work after the Google authentication route is added.
+To link an active student or admin account to its Google email from a trusted
+local terminal, run:
+
+```bash
+cd api
+npm run link-google-email -- student_06 PERSONS_GOOGLE_EMAIL
+```
+
+Each Google email can belong to only one AttendX account. The API accepts a
+Google ID token only when its verified email is linked to an active user. Set
+the OAuth client IDs (comma-separated) in `GOOGLE_OAUTH_CLIENT_IDS` in the
+server's root `.env` before enabling sign-in.
 
 ### Hostel location and face threshold configuration
 
