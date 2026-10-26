@@ -111,11 +111,12 @@ audited without storing their uploaded images.
 
 ### Development sign-in and admin access
 
-The college identity provider has not been selected, so the current sign-in
-route is **development-only**. It requires `ENABLE_DEV_LOGIN=true` and the
-server-only `DEV_LOGIN_SECRET` in the root `.env`, and issues a short-lived
-signed token. Never put this shared secret in the Expo app. Production sign-in
-must use the college identity provider or another real authentication flow.
+The app still uses the **development-only** sign-in screen. Its server route
+requires `ENABLE_DEV_LOGIN=true` and the server-only `DEV_LOGIN_SECRET` in the
+root `.env`, and issues a short-lived signed token. Never put this shared secret
+in the Expo app. The API's Google ID-token verification route is now in place,
+but the mobile Google button, OAuth client setup, and account email links still
+need to be completed before switching the app to Google sign-in.
 The local `.env` has private development secrets; the actual values are not in
 this README or `.env.example`.
 
