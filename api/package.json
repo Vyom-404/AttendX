@@ -8,6 +8,7 @@
     "dev": "nodemon --watch src --ext js,mjs,json src/server.js",
     "import:students": "node scripts/import-students.js",
     "sync:roster": "node scripts/sync-roster.js",
+    "link-google-email": "node scripts/link-google-email.js",
     "grant-admin": "node scripts/grant-admin.js",
     "create-admin": "node scripts/create-admin.js"
   },
