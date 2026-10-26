@@ -26,6 +26,14 @@ export async function connectToDatabase() {
     { studentId: 1 },
     { unique: true, name: "unique_user_student_id" },
   );
+  await database.collection("users").createIndex(
+    { googleEmail: 1 },
+    {
+      unique: true,
+      name: "unique_google_email",
+      partialFilterExpression: { googleEmail: { $type: "string" } },
+    },
+  );
   await database.collection("attendanceSessions").createIndex(
     { hostelId: 1, startAt: 1, endAt: 1 },
     { name: "hostel_session_window" },
