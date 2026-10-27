@@ -3,3 +3,11 @@ export type ApiUser = {
   name: string;
   roles: string[];
 };
+
+export type AdminSession = {
+  _id: string;
+  title: string;
+  startAt: string;
+  endAt: string;
+  status: string;
+};
