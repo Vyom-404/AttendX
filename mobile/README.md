@@ -1,6 +1,6 @@
 # AttendX mobile app
 
-This Expo app contains the student home screen and hostel admin dashboard. It currently uses the backend's development-only sign-in route. The API is ready to verify Firebase ID tokens for Google sign-in, but the mobile Firebase sign-in flow is still to be added. Students can use the in-app front camera and foreground location to submit attendance to the API.
+This Expo app contains student attendance check-in and the hostel admin dashboard. Android sign-in uses Google through Firebase Authentication; web warden sign-in temporarily uses the API's development-only route. Students can use the in-app front camera and foreground location to submit attendance to the API.
 
 ## Run it locally
 
@@ -19,11 +19,11 @@ This Expo app contains the student home screen and hostel admin dashboard. It cu
    npm start
    ```
 
-Open Expo Go on a device, or press `w` in the Expo terminal for the web dashboard.
+Press `w` in the Expo terminal for the web dashboard. Expo Go still works for other mobile development, but native Google sign-in requires an EAS development build. From `mobile/`, run `npx eas-cli@latest build:configure`, then `npx eas-cli@latest build --platform android --profile development`. EAS will ask you to sign in and create the Android signing key.
 
 ## Development sign-in
 
-The temporary sign-in asks for a student ID and the server-side `DEV_LOGIN_SECRET`. It is not the student sign-in design and must not be used in a deployed app. The secret is typed at runtime and is not bundled in the app. An account needs the server-side `admin` role to open the dashboard.
+Android students and wardens sign in with their linked Google account. The API accepts the Firebase ID token only when the verified Google email matches an active AttendX account. Web currently has a temporary admin-only development sign-in that asks for the server-side `DEV_LOGIN_SECRET`; it is not the production sign-in flow. The secret is typed at runtime and is not bundled in the app. An account needs the server-side `admin` role to open the dashboard.
 
 The dashboard reads session and attendance data from the API. Room numbers are optional and come from the private `api/students.json` manifest. Add a `roomNumber` for each student and run `npm run sync:roster` from `api/` to update them without reprocessing face photos.
 
