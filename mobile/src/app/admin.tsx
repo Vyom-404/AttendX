@@ -9,8 +9,9 @@ import { useAuth } from '@/providers/auth-provider';
 
 type AdminSession = { _id: string; title: string; startAt: string; endAt: string; status: string };
 type RosterRecord = { attendanceId: string | null; studentId: string; name: string; roomNumber?: string | null; status: 'present' | 'absent'; markedAt: string | null };
+type Attempt = { actorId: string; outcome: string; createdAt: string; requestId?: string };
 
-const C = { ink: '#2B1D36', muted: '#897B8B', blue: '#51405E', navy: '#2B1D36', paper: '#F7F1E8', white: '#FFFCF7', line: '#EAE0D8', green: '#477569', red: '#A43F45', coral: '#FF795F' };
+const C = { ink: '#2B1D36', muted: '#897B8B', blue: '#51405E', navy: '#2B1D36', paper: '#F7F1E8', white: '#FFFCF7', line: '#EAE0D8', green: '#477569', red: '#A43F45', amber: '#9B6A22', coral: '#FF795F' };
 
 function sessionState(session: AdminSession) {
   const now = Date.now();
@@ -25,6 +26,7 @@ export default function AdminDashboard() {
   const [sessions, setSessions] = useState<AdminSession[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [roster, setRoster] = useState<RosterRecord[]>([]);
+  const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -52,10 +54,14 @@ export default function AdminDashboard() {
   }, [token, isAdmin]);
 
   const loadReport = useCallback(async (id: string) => {
-    if (!token || !id) { setRoster([]); return; }
+    if (!token || !id) { setRoster([]); setAttempts([]); return; }
     try {
-      const attendance = await apiRequest<{ records: RosterRecord[] }>(`/admin/sessions/${id}/attendance`, token);
+      const [attendance, attemptResult] = await Promise.all([
+        apiRequest<{ records: RosterRecord[] }>(`/admin/sessions/${id}/attendance`, token),
+        apiRequest<{ attempts: Attempt[] }>(`/admin/sessions/${id}/attempts`, token),
+      ]);
       setRoster(attendance.records || []);
+      setAttempts(attemptResult.attempts || []);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not load this session report.');
     }
@@ -171,6 +177,7 @@ export default function AdminDashboard() {
           <Metric label="ROSTER" value={String(roster.length)} tint="#EEE4F1" icon="⌂" />
           <Metric label="PRESENT" value={String(presentCount)} tint="#E3EEE9" icon="✓" green />
           <Metric label="AWAY" value={String(absentCount)} tint="#FCE8E0" icon="–" red />
+          <Metric label="FLAGGED ATTEMPTS" value={String(attempts.length)} tint="#F8EBD2" icon="!" amber />
         </View>
 
         <View style={styles.contentCard}>
@@ -204,13 +211,29 @@ export default function AdminDashboard() {
           )}
         </View>
 
+        {selected && <View style={[styles.contentCard, styles.attemptsCard]}>
+          <View style={styles.sectionHeader}>
+            <View><Text style={styles.sectionTitle}>Flagged attempts</Text><Text style={styles.sectionHint}>Rejected check-ins for this session; a flag is not proof of misconduct.</Text></View>
+            <Text style={styles.attemptCount}>{attempts.length}</Text>
+          </View>
+          {attempts.length === 0 ? <Text style={styles.mutedText}>No rejected attempts recorded for this session.</Text> : attempts.slice(0, 5).map((attempt) => {
+            const student = roster.find((record) => record.studentId === attempt.actorId);
+            const reason = attempt.outcome.toLowerCase().replaceAll('_', ' ').replace(/^\w/, (letter) => letter.toUpperCase());
+            return <View key={attempt.requestId || `${attempt.actorId}-${attempt.createdAt}`} style={styles.attemptRow}>
+              <View style={{ flex: 1 }}><Text style={styles.attemptStudent}>{student?.name || attempt.actorId}</Text><Text style={styles.attemptReason}>{student?.roomNumber ? `Room ${student.roomNumber} · ` : ''}{reason}</Text></View>
+              <Text style={styles.attemptTime}>{new Date(attempt.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</Text>
+            </View>;
+          })}
+          {attempts.length > 5 && <Text style={styles.attemptMore}>Showing 5 most recent · {attempts.length - 5} earlier</Text>}
+        </View>}
+
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function Metric({ label, value, tint, icon, green, red }: { label: string; value: string; tint: string; icon: string; green?: boolean; red?: boolean }) {
-  const color = green ? C.green : red ? C.red : C.blue;
+function Metric({ label, value, tint, icon, green, red, amber }: { label: string; value: string; tint: string; icon: string; green?: boolean; red?: boolean; amber?: boolean }) {
+  const color = green ? C.green : red ? C.red : amber ? C.amber : C.blue;
   return <View style={styles.metric}><View style={[styles.metricIcon, { backgroundColor: tint }]}><Text style={{ color, fontWeight: '900', fontSize: 17 }}>{icon}</Text></View><Text style={styles.metricValue}>{value}</Text><Text style={styles.metricLabel}>{label}</Text></View>;
 }
 
@@ -225,6 +248,7 @@ const styles = StyleSheet.create({
   welcomeRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, marginBottom: 23 }, kicker: { color: C.blue, fontSize: 9, fontWeight: '800', letterSpacing: 1.5, marginBottom: 7 }, pageTitle: { color: C.ink, fontSize: 30, lineHeight: 37, letterSpacing: -1.2, fontWeight: '900' }, subtitle: { color: C.muted, fontSize: 13, marginTop: 7 }, primaryButton: { backgroundColor: C.navy, minHeight: 43, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }, primaryButtonText: { color: C.white, fontSize: 12, fontWeight: '700' },
   error: { color: '#A43F45', backgroundColor: '#F7E1D9', paddingVertical: 11, paddingHorizontal: 14, borderRadius: 11, borderWidth: 1, borderColor: '#F2D3CC', marginBottom: 13, fontSize: 12 }, notice: { color: C.green, backgroundColor: '#E6EEE8', paddingVertical: 10, paddingHorizontal: 13, borderRadius: 10, marginBottom: 13, fontSize: 12, overflow: 'hidden' }, createCard: { backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 17, padding: 17, marginBottom: 18 }, formRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 11, flexWrap: 'wrap', marginTop: 15 }, formField: { flex: 1, minWidth: 200 }, durationField: { flex: 0.45, minWidth: 135 }, fieldLabel: { color: C.muted, fontSize: 8, fontWeight: '800', letterSpacing: 1, marginBottom: 7 }, input: { height: 42, borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 11, color: C.ink, fontSize: 12, backgroundColor: '#FFFCF7' }, createButton: { height: 42, minWidth: 120, backgroundColor: C.navy, borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center' }, dimmed: { opacity: 0.5 },
   metricsRow: { flexDirection: 'row', gap: 13, marginBottom: 20, flexWrap: 'wrap' }, metric: { flex: 1, minWidth: 145, backgroundColor: C.white, borderColor: C.line, borderWidth: 1, borderRadius: 15, padding: 15, minHeight: 123 }, metricIcon: { width: 29, height: 29, alignItems: 'center', justifyContent: 'center', borderRadius: 9 }, metricValue: { color: C.ink, fontSize: 26, lineHeight: 31, fontWeight: '800', marginTop: 11, letterSpacing: -0.7 }, metricLabel: { color: C.muted, fontSize: 8, fontWeight: '800', letterSpacing: 0.8, marginTop: 2 },
+  attemptsCard: { marginTop: 18 }, attemptCount: { color: C.amber, backgroundColor: '#F8EBD2', borderRadius: 10, overflow: 'hidden', paddingHorizontal: 11, paddingVertical: 6, fontSize: 15, fontWeight: '800' }, attemptRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: C.line, paddingVertical: 12 }, attemptStudent: { color: C.ink, fontSize: 12, fontWeight: '700' }, attemptReason: { color: C.amber, fontSize: 10, marginTop: 4, textTransform: 'capitalize' }, attemptTime: { color: C.muted, fontSize: 10 }, attemptMore: { color: C.muted, fontSize: 10, paddingTop: 10 },
   contentCard: { backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 17, padding: 18 }, sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, sectionTitle: { color: C.ink, fontSize: 16, fontWeight: '800', letterSpacing: -0.3 }, sectionHint: { color: C.muted, fontSize: 11, marginTop: 4 }, exportButton: { borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12 }, exportButtonText: { color: C.ink, fontWeight: '700', fontSize: 10 }, sessionChips: { gap: 8, paddingTop: 16, paddingBottom: 14 }, sessionChip: { flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingVertical: 9, paddingHorizontal: 11, minWidth: 150, maxWidth: 230, backgroundColor: '#FFFCF7' }, sessionChipSelected: { borderColor: '#D7C7DD', backgroundColor: '#F0E8F0' }, sessionStateDot: { width: 7, height: 7, borderRadius: 4 }, sessionChipTitle: { color: C.ink, fontWeight: '700', fontSize: 11 }, sessionChipTextSelected: { color: '#51405E' }, sessionChipMeta: { color: C.muted, fontSize: 9, marginTop: 3 }, sessionChipMetaSelected: { color: '#8B7D8E' }, selectedSessionBar: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: '#EEE5EF', borderBottomWidth: 1, borderBottomColor: '#EEE5EF', paddingVertical: 13 }, selectedTitle: { color: C.ink, fontSize: 13, fontWeight: '700' }, selectedMeta: { color: C.muted, fontSize: 10, marginTop: 4 }, closeButton: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 9, backgroundColor: '#F7E1D9' }, closeButtonText: { color: C.red, fontSize: 10, fontWeight: '700' },
   searchWrap: { height: 40, borderWidth: 1, borderColor: C.line, borderRadius: 10, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 11, marginTop: 14, marginBottom: 10, backgroundColor: '#FFFCF7' }, searchIcon: { color: C.muted, fontSize: 19, marginRight: 7 }, searchInput: { color: C.ink, flex: 1, fontSize: 11, height: '100%' }, rosterTable: { minWidth: 590 }, tableHeader: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: C.line, paddingVertical: 10, paddingHorizontal: 5 }, tableHeadCell: { color: '#9B8E9C', fontSize: 8, fontWeight: '800', letterSpacing: 0.8 }, studentColumn: { flex: 2.4, minWidth: 150 }, roomColumn: { flex: 0.7, minWidth: 65 }, statusColumn: { flex: 1.1, minWidth: 95 }, statusAlign: { alignItems: 'flex-start' }, timeColumn: { flex: 1.05, minWidth: 90, textAlign: 'right' }, rosterRow: { minHeight: 60, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#EEE8E2', paddingHorizontal: 5, gap: 8 }, studentName: { color: C.ink, fontSize: 11, fontWeight: '700' }, roomCell: { color: C.ink, fontSize: 11 }, statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5 }, presentBadge: { backgroundColor: '#E6EEE8' }, absentBadge: { backgroundColor: '#F7E1D9' }, badgeDot: { width: 5, height: 5, borderRadius: 3 }, badgeText: { fontSize: 9, fontWeight: '800' }, timeCell: { color: C.muted, fontSize: 10, textAlign: 'right' }, tableFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 11 }, tableFooterText: { color: '#9B8E9C', fontSize: 9 }, emptyRoster: { paddingVertical: 24, alignItems: 'center' }, loading: { paddingVertical: 40, alignItems: 'center', gap: 10 }, empty: { alignItems: 'center', paddingVertical: 43, paddingHorizontal: 20 }, emptyTitle: { color: C.ink, fontSize: 15, fontWeight: '700', marginBottom: 6 }, mutedText: { color: C.muted, fontSize: 11, lineHeight: 18, textAlign: 'center' }, centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 }, deniedTitle: { color: C.ink, fontSize: 22, fontWeight: '800', marginBottom: 10 },
 });
