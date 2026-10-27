@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "990727791021-3q6l6veedubbufpfo6m7igsplvm3cjd7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vyom.attendx",
+            "certificate_hash": "ad2f3d9a6b420285953ec135205fc42e165fe888"
+          }
+        },
+        {
           "client_id": "990727791021-ofuoj4j7thc0j73svb6fup492is30hij.apps.googleusercontent.com",
           "client_type": 3
         }
