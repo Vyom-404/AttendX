@@ -178,3 +178,19 @@ function Dashboard() {
       setError(reason instanceof Error ? reason.message : 'Could not export this report.');
     }
   }
+
+  return (
+    <main className="dashboard-shell">
+      <header className="topbar">
+        <a className="brand" href="/" aria-label="AttendX admin home"><span className="brand-mark small">A</span><span>Attend<span className="brand-accent">X</span></span></a>
+        <div className="account-actions"><span className="admin-badge">Admin access</span><span className="account-name">{user?.name}</span><button className="button button-quiet" onClick={() => void signOut()}>Sign out</button></div>
+      </header>
+
+      <section className="page-heading">
+        <div><p className="eyebrow">ATTENDANCE OVERVIEW</p><h1>Good day, {user?.name?.split(' ')[0] || 'Admin'}</h1><p className="muted">Manage sessions and review hostel attendance.</p></div>
+        <button className="button button-primary" onClick={() => { setShowCreate((value) => !value); setError(''); }}>{showCreate ? 'Cancel' : '+ New session'}</button>
+      </section>
+
+      {error && <p className="error-banner" role="alert">{error}</p>}
+      {notice && <button className="notice-banner" onClick={() => setNotice('')}>{notice} ×</button>}
+
