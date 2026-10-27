@@ -84,3 +84,23 @@ function Dashboard() {
   }, [token]);
 
   useEffect(() => { void loadSessions(); }, [loadSessions]);
+
+  const loadReport = useCallback(async (sessionId: string) => {
+    if (!token || !sessionId) {
+      setRoster([]);
+      setAttempts([]);
+      return;
+    }
+    try {
+      const [attendance, attemptResult] = await Promise.all([
+        apiRequest<{ records: RosterRecord[] }>(`/admin/sessions/${sessionId}/attendance`, token),
+        apiRequest<{ attempts: Attempt[] }>(`/admin/sessions/${sessionId}/attempts`, token),
+      ]);
+      setRoster(attendance.records || []);
+      setAttempts(attemptResult.attempts || []);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not load this session report.');
+    }
+  }, [token]);
+
+  useEffect(() => { void loadReport(selectedId); }, [selectedId, loadReport]);
