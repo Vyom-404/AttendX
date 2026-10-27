@@ -66,3 +66,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<ApiUser | null>(null);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    let active = true;
+    let unsubscribe = () => {};
+
+    void setPersistence(firebaseAuth, browserLocalPersistence)
+      .then(() => {
+        if (!active) return;
+        unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
+          if (!firebaseUser) {
+            setToken(null);
+            setUser(null);
+            setStatus('signed-out');
+            return;
+          }
+          setStatus('checking');
+          try {
+            const session = await exchangeFirebaseUser(firebaseUser);
+            if (!active) return;
+            setToken(session.accessToken);
+            setUser(session.user);
+            setError('');
+            setStatus('signed-in');
+          } catch (reason) {
+            if (!active) return;
+            setToken(null);
+            setUser(null);
+            setError(reason instanceof Error ? reason.message : 'Could not sign in.');
+            setStatus('signed-out');
+          }
+        });
+      })
+      .catch((reason: unknown) => {
+        if (active) {
+          setError(reason instanceof Error ? reason.message : 'Firebase sign-in could not start.');
+          setStatus('signed-out');
+        }
+      });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
