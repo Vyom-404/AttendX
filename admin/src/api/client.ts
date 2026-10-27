@@ -21,3 +21,14 @@ export async function apiRequest<T>(path: string, token: string, init: RequestIn
   }
   return result as T;
 }
+
+export async function downloadReport(path: string, token: string): Promise<string> {
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    throw new Error(result?.error?.message || 'Could not download this report.');
+  }
+  return response.text();
+}
