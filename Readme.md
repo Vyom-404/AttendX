@@ -1,8 +1,24 @@
-# AttendX
+<div align="center">
+  <img src="mobile/assets/images/icon.png" width="92" alt="AttendX app icon" />
+  <h1>AttendX</h1>
+  <p><strong>A calmer hostel roll call.</strong></p>
+  <p>Students check in from Android. Wardens open sessions and see the roster from a browser.</p>
+  <p>
+    <a href="https://attendx-mobile.vercel.app/">Open warden dashboard</a>
+    &nbsp;·&nbsp;
+    <a href="https://attend-x-xi.vercel.app/health">Check API health</a>
+    &nbsp;·&nbsp;
+    <a href="https://attendxfaceservice.vercel.app/health">Check face service</a>
+  </p>
+</div>
 
-> **A calmer hostel roll call.** Students check in from the AttendX Android app; wardens open attendance sessions and see the roster from a browser.
+AttendX is a student project for hostel attendance. It brings together a student mobile app, a warden dashboard, a Node.js API, MongoDB, Firebase Authentication, and a Python face-verification service.
 
-AttendX is a student project for hostel attendance. It combines a student mobile app, a warden dashboard, a Node.js API, MongoDB, and a Python face-verification service.
+### At a glance
+
+| 👨‍🎓 Student | 🧑‍💼 Warden | 🧠 Verification | ☁️ Hosting |
+| --- | --- | --- | --- |
+| Android APK with Google sign-in, camera-only check-in, and foreground location. | Opens and closes sessions, views present/away students and rooms, reviews rejected attempts, and exports CSV. | InsightFace embeddings, liveness classification, cosine similarity, and a server-checked geofence. | Vercel for API, face service, and web app; EAS Build for Android. |
 
 ## Live AttendX
 
@@ -17,6 +33,8 @@ The current public web deployment is built from `mobile/` and includes the warde
 
 ## How attendance works
 
+An attendance check-in is a short request chain across the phone, API, face service, and database. The API owns the final decision: the client supplies evidence (camera frames and a location fix), while the backend checks it against server-side policy and saved student data.
+
 ```mermaid
 flowchart LR
   W[Warden dashboard] -->|Start session| API[AttendX Node API]
@@ -29,13 +47,31 @@ flowchart LR
   W -->|Roster and flagged attempts| API
 ```
 
-1. A warden signs in with an authorized Google account and opens an attendance session.
-2. A student signs in with the Google account linked to their active AttendX record.
-3. During an open session, the student captures three images with the in-app front camera and submits a fresh location fix. There is no gallery upload path.
-4. The API checks the session, student account, hostel geofence, and duplicate-attendance rule. It sends each image to the face service for liveness and matching checks.
-5. The API records attendance only when the checks pass. It records rejected attempts with reason codes so the warden can review them.
+### 1 · The warden opens roll call
 
-The warden dashboard shows students as present or away, their room numbers, and the most recent rejected attempts for the selected session. A rejected attempt is a review signal; it is not by itself proof of misconduct.
+The warden signs in with Google. Firebase returns an identity token; the AttendX API verifies it and checks the account's server-side `admin` role and hostel assignment. Creating a session writes its title, start time, end time, status, and hostel ID to `attendanceSessions`.
+
+### 2 · The student opens the session
+
+The student signs in with the Google account linked to an active AttendX user. The app asks the API for the active session and the student's profile. A student must have an imported face template before attendance can be submitted.
+
+### 3 · The app captures evidence
+
+The app takes three still images in quick succession using the front camera, then asks for a fresh foreground location fix. It sends the three `captures`, active `sessionId`, coordinates, accuracy, and timestamp as a multipart request to `POST /attendance`. The app does not let students choose images from the gallery.
+
+### 4 · The API checks the request
+
+Before inference, the API verifies the signed-in user's student role, requires exactly three image frames, checks that the session belongs to the student's hostel and is open, rejects duplicate check-ins, and validates the location timestamp, GPS accuracy, and distance from the configured geofence. It loads the student's saved face template from MongoDB.
+
+### 5 · Python checks each frame
+
+For each frame, the API sends the image and the stored template to `POST /v1/verify` on the face service. The Python service decodes the image, requires one detected face, runs the liveness add-on, extracts a face embedding, and returns a cosine similarity score. A frame that fails liveness or face extraction is rejected.
+
+### 6 · The API records the result
+
+All three frames must pass liveness. The Node API takes the **median** of the three face-match scores and compares it with `FACE_MATCH_THRESHOLD` (currently configured as `0.70`). If the check passes, it inserts one `present` record with the verification policy and a minimized location summary. A unique database index prevents a second record for that student and session. If a check fails, the API returns a clear error and records a reason code in `auditEvents`.
+
+The warden dashboard reads session rosters and rejected-attempt events from the API. It shows students as present or away, room numbers, and the most recent rejected attempts for the selected session. “Flagged” means **rejected check-ins for review**; it does not claim a failed check-in proves misconduct.
 
 ## Project map
 
@@ -66,6 +102,71 @@ The database stores student and user records, face templates, hostel/geofence se
 Liveness and face matching reduce some forms of misuse but are not perfect proof of identity or presentation. Thresholds and geofence settings need careful validation with representative captures and real GPS accuracy before relying on them.
 
 **Model terms:** InsightFace code and its pretrained weights have separate terms. The public `buffalo_l` pretrained pack is restricted to non-commercial research use according to the [InsightFace model-zoo notice](https://github.com/deepinsight/insightface/tree/master/model_zoo). Check the [liveness add-on terms](https://github.com/deepinsight/insightface/blob/master/python-package/docs/liveness.md) as well.
+
+## Python face service · code review
+
+The Python service is an inference service; it does **not train or fine-tune** a face-recognition model on AttendX students. InsightFace's pretrained `buffalo_l` model produces embeddings. AttendX reference photos are used only to build and save one enrollment template per student.
+
+### The code path
+
+| File | Role in the flow |
+| --- | --- |
+| [`face-service/face_service/face_engine.py`](face-service/face_service/face_engine.py) | Loads InsightFace once per worker, extracts live embeddings, builds enrollment templates, validates templates, and computes similarity. |
+| [`face-service/face_service/api.py`](face-service/face_service/api.py) | Defines health, enrollment-template, and verification HTTP endpoints; validates image type, byte size, pixel count, and template JSON. |
+| [`face-service/app.py`](face-service/app.py) | Vercel entry point. It includes a compatibility adapter for missing `scikit-image` typing stubs in Vercel's Python bundle, then exports the FastAPI app. |
+| [`face-service/main.py`](face-service/main.py) | Local sample-folder runner for comparing enrollment photos with verification photos. It does not serve HTTP requests or write templates to MongoDB. |
+
+### What `FaceEngine` does
+
+1. **Load once:** `FaceEngine.__init__` creates `FaceAnalysis(name="buffalo_l", addons=["liveness"])` and prepares detection at `640 × 640`. The API creates a module-level engine when its worker starts, so a warm worker reuses the loaded model.
+2. **Find one face:** `get_live_embedding_from_image` calls InsightFace and rejects images with zero or multiple detected faces.
+3. **Check liveness:** It requires a liveness result with status `ok` and `is_live == True`. Missing, rejected, or fake classifications return a reason instead of an embedding.
+4. **Normalize the embedding:** It reads the model's face vector and divides it by its L2 norm. A zero-length vector is rejected.
+5. **Build an enrollment template:** `create_template_from_images` keeps usable embeddings, requires at least three, averages them, and normalizes the mean. The API endpoint accepts 3–10 enrollment images and returns the template plus any rejected-image reasons.
+6. **Compare a check-in:** `verify_image` converts the saved template to `float32`, rejects malformed, non-finite, zero-length, or wrong-shaped templates, extracts the live capture embedding, and returns the dot product between the two normalized vectors.
+
+For normalized vectors, the dot product is cosine similarity:
+
+```text
+similarity = dot(capture_embedding, enrollment_template)
+```
+
+It is a **similarity score, not a probability**. The Python service returns a score; the Node API applies the configured threshold and three-frame median policy.
+
+```text
+Enrollment photos ──> liveness + embedding per photo ──> mean ──> normalize ──> MongoDB template
+                                                                              │
+Three camera frames ──> liveness + embedding per frame ──> cosine scores ──> median + threshold
+                                                                              │
+                                                                       attendance decision
+```
+
+The verification endpoint returns a small JSON result on a successful frame, for example:
+
+```json
+{
+  "status": "liveness_passed",
+  "similarity": 0.82,
+  "model": "buffalo_l"
+}
+```
+
+The number shown is illustrative, not a calibrated identity probability. The API client makes three requests (one for each capture), and rejects the attendance submission if a frame is not live or the median match score is below policy.
+
+### Review notes: what is solid and what needs care
+
+| Area | Review |
+| --- | --- |
+| Input checks | The HTTP layer limits uploads to 8 MB, allows JPEG/PNG content types, rejects invalid decoded images, and caps image dimensions at 12 million pixels. Enrollment is limited to 3–10 photos. |
+| Embedding checks | Embeddings and templates are normalized; template values are checked for finite numbers, nonzero norm, and the expected shape before comparison. |
+| Model reuse | The module-level engine avoids loading the neural models for every request on a warm worker. A cold Vercel worker still has to initialize the model, which can make the first verification slower. |
+| Reference template | Averaging several normalized references is a compact baseline. The quality of the result still depends on clear, varied reference photos; one poor or filtered photo can pull the average away from the student's face. |
+| Liveness strength | The current liveness check classifies each still image. Three stills are stronger than one for consistency checks, but they are not a randomized motion challenge and should not be described as foolproof anti-spoofing. |
+| Request execution | Inference is CPU-heavy and runs synchronously inside an async FastAPI route. This is acceptable for the small demo workload; higher concurrent traffic should use controlled worker execution and measured capacity. |
+| Service boundary | The Node API is expected to call the face service, but the Python routes currently do not authenticate that caller. Add service-to-service authentication or private networking before broadening exposure. |
+| Health route | `/health` confirms the app and model initialized sufficiently to serve. It does not measure recognition accuracy or test a real capture end to end. |
+
+The local validation script and endpoint errors help debug the pipeline, but they do not replace threshold calibration with independent same-person and different-person captures. Scores vary with capture quality, lighting, pose, and model behavior; `0.70` is a project setting, not a universal safe cutoff.
 
 ## Local development
 
