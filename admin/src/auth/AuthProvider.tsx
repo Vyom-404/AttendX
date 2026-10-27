@@ -43,3 +43,19 @@ function getFirebaseAuth() {
 }
 
 const firebaseAuth = getFirebaseAuth();
+
+async function exchangeFirebaseUser(firebaseUser: FirebaseUser) {
+  const idToken = await firebaseUser.getIdToken();
+  const response = await fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '')}/auth/firebase-session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result?.error?.message || 'AttendX could not verify this Google account.');
+  if (!result.user?.roles?.includes('admin')) {
+    await firebaseSignOut(firebaseAuth);
+    throw new Error('Admin access is required for the web portal.');
+  }
+  return result as { accessToken: string; user: ApiUser };
+}
