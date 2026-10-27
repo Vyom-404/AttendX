@@ -9,6 +9,7 @@ type AuthContextValue = {
   user: ApiUser | null;
   authReady: boolean;
   signingIn: boolean;
+  authError: string;
   signInGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -20,6 +21,7 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
   const [user, setUser] = useState<ApiUser | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
+  const [authError, setAuthError] = useState('');
 
   const exchangeFirebaseToken = useCallback(async (idToken: string) => {
     const result = await apiRequest<{ accessToken: string; user: ApiUser }>('/auth/firebase-session', undefined, {
@@ -43,7 +45,9 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
       .then(async (idToken) => {
         if (idToken) await exchangeFirebaseToken(idToken);
       })
-      .catch(() => undefined)
+      .catch((reason) => {
+        if (mounted) setAuthError(reason instanceof Error ? reason.message : 'Could not restore your sign-in.');
+      })
       .finally(() => {
         if (mounted) setAuthReady(true);
       });
@@ -55,9 +59,13 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
 
   async function signInGoogle() {
     setSigningIn(true);
+    setAuthError('');
     try {
       const idToken = await signInWithGoogle();
       await exchangeFirebaseToken(idToken);
+    } catch (reason) {
+      setAuthError(reason instanceof Error ? reason.message : 'Google sign-in failed. Please try again.');
+      throw reason;
     } finally {
       setSigningIn(false);
     }
@@ -66,10 +74,15 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
   async function signOut() {
     setToken(null);
     setUser(null);
-    await signOutFirebase();
+    try {
+      await signOutFirebase();
+    } catch (reason) {
+      setAuthError(reason instanceof Error ? reason.message : 'Could not sign out. Please try again.');
+      throw reason;
+    }
   }
 
-  const value = { token, user, authReady, signingIn, signInGoogle, signOut };
+  const value = { token, user, authReady, signingIn, authError, signInGoogle, signOut };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

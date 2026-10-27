@@ -70,6 +70,7 @@ export async function signInWithGoogle(): Promise<string> {
 }
 
 export async function getFirebaseIdToken(): Promise<string | null> {
+  await firebaseAuth.authStateReady();
   return firebaseAuth.currentUser?.getIdToken() ?? null;
 }
 
