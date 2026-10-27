@@ -11,3 +11,23 @@ export type AdminSession = {
   endAt: string;
   status: string;
 };
+
+export type RosterRecord = {
+  attendanceId: string | null;
+  studentId: string;
+  name: string;
+  roomNumber?: string | null;
+  status: 'present' | 'absent';
+  markedAt: string | null;
+};
+
+export type Attempt = {
+  actorId: string;
+  outcome: string;
+  createdAt: string;
+};
+
+export type AdminReport = {
+  records: RosterRecord[];
+  attempts: Attempt[];
+};
