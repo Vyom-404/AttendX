@@ -11,7 +11,8 @@ Think of AttendX as three programs that will work together:
 
 | Part | What it does | Current status |
 | --- | --- | --- |
-| `mobile/` | The Expo app students use to view sessions and check their attendance; it also contains the hostel admin dashboard. | Student camera capture, foreground location, and native Android Google sign-in through Firebase are connected in code. An EAS development APK is installed; the updated Firebase config needs a fresh build and Google sign-in validation. Web sign-in remains. |
+| `mobile/` | Expo phone app for student attendance and warden access on a phone. | Camera capture, foreground location, and native Google sign-in through Firebase are connected. |
+| `admin/` | Standalone web portal for wardens using a laptop or browser. | Firebase Google sign-in, session management, attendance reports, search, and CSV export are connected in code. |
 | `api/` | The Node.js/Express backend. It handles authentication, sessions, location policy, attendance, and reports. | MVP API routes and MongoDB records are implemented, including optional room numbers in session rosters and exports. |
 | `face-service/` | The Python service that uses InsightFace to detect faces, check liveness, and make/compare face templates. | Local photo checks and HTTP endpoints are set up. |
 | MongoDB Atlas | Stores student accounts, face templates, hostel policy, sessions, attendance, and audit events. | Four named student templates are saved; attendance collections/indexes are created by the API. |
@@ -111,14 +112,15 @@ audited without storing their uploaded images.
 
 ### Development sign-in and admin access
 
-Android students and wardens, and web wardens, use Google sign-in through
-Firebase Authentication. The API verifies the Firebase ID token and accepts
-only Google accounts whose verified email is linked to an active AttendX
-account. Web sign-in accepts only accounts with the server-side `admin` role.
-The client needs the Firebase Web app config in `mobile/.env` using the
-`EXPO_PUBLIC_FIREBASE_*` variables from `mobile/.env.example`. These are public
-client configuration values; never put the Firebase Admin private key in the
-Expo app.
+The Expo phone app is in `mobile/`; the standalone warden web portal is in
+`admin/`. Both use Google sign-in through Firebase Authentication. The API
+verifies Firebase ID tokens and accepts only Google accounts whose verified
+email is linked to an active AttendX account. The web portal requires the
+server-side `admin` role. Configure its Firebase Web app values in `admin/.env`
+using `admin/.env.example`. These are public client configuration values; never
+put the Firebase Admin private key in either client app.
+Firebase keeps the sign-in session across app restarts, and API access tokens
+last seven days by default (`AUTH_TOKEN_LIFETIME_SECONDS` in the root `.env`).
 The local `.env` has private development secrets; the actual values are not in
 this README or `.env.example`. Configure `FIREBASE_PROJECT_ID`,
 `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY` in the server root `.env`
@@ -256,26 +258,28 @@ cd mobile
 cp .env.example .env
 ```
 
-Set `EXPO_PUBLIC_API_URL` in `mobile/.env` to the computer running the API. Use
-`http://localhost:3000` for the web app on that same computer; for a phone on
-the same Wi-Fi, use the computer's local network IP instead. Then run:
+Set `EXPO_PUBLIC_API_URL` in `mobile/.env` to the computer running the API. For a
+phone on the same Wi-Fi, use the computer's local network IP. Then run:
 
 ```bash
 npm start
 ```
 
-The API allows the local Expo web origins on ports 8081 by default. If you open
-the web app using a LAN IP or a different port, add that full origin to
-`WEB_ORIGINS` in the root `.env`, separated from any existing origins by a comma.
 For Expo Go on a physical phone, the API must also listen on the local network:
 temporarily set `API_HOST=0.0.0.0` in the root `.env`, then use the computer's
 LAN IP in `mobile/.env` (for example, `http://192.168.1.20:3000`).
 
-Open the web dashboard by pressing `w` in the Expo terminal and sign in with a
-Google account linked to an AttendX admin. Add the Firebase Web app config to
-`mobile/.env` before starting Expo. Android Google sign-in requires a custom
-EAS development build and cannot run in Expo Go. From `mobile/`, configure EAS
-and build it with:
+### 6. Run the admin web portal
+
+Copy `admin/.env.example` to `admin/.env`; fill its Firebase Web config from the
+Firebase console or the public config already in `mobile/.env`. Add
+`http://localhost:5173` to `WEB_ORIGINS` in the root `.env` if that variable is
+already set. From `admin/`, run `npm install` once, then `npm run dev`.
+
+### 7. Build the Android development app
+
+Android Google sign-in requires a custom EAS development build and cannot run
+in Expo Go. From `mobile/`, configure EAS and build it with:
 
 ```bash
 npx eas-cli@latest build:configure
