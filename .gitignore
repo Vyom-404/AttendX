@@ -7,3 +7,5 @@ api/node_modules/
 api/students.json
 node_modules/
 admin/dist/
+.vercel
+.env*
