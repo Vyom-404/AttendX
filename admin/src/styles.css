@@ -75,3 +75,14 @@ input:focus, select:focus { border-color: #91b3f7; box-shadow: 0 0 0 3px #2869e8
 .selected-session { border-top: 1px solid #eef1f5; border-bottom: 1px solid #eef1f5; padding: 15px 0; margin-top: 18px; }
 .selected-session strong { font-size: 14px; }
 .selected-session .muted { font-size: 11px; margin-top: 5px; }
+.search-field { max-width: 360px; margin: 16px 0 10px; }
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 620px; text-align: left; }
+th { color: #8794a2; font-size: 9px; letter-spacing: .8px; text-transform: uppercase; padding: 11px 8px; border-bottom: 1px solid var(--line); }
+td { color: var(--ink); font-size: 12px; padding: 13px 8px; border-bottom: 1px solid #f0f3f6; }
+td small { display: block; color: var(--muted); font-size: 10px; margin-top: 4px; }
+.status { display: inline-flex; border-radius: 7px; padding: 5px 8px; font-size: 10px; font-weight: 800; text-transform: capitalize; }
+.status-present { color: var(--green); background: #e7f6ef; }
+.status-absent { color: var(--red); background: #fff0ef; }
+.empty-state { color: var(--muted); text-align: center; font-size: 13px; padding: 34px 12px; }
+.footnote { color: #8996a4; font-size: 11px; margin: 14px 3px 0; }
