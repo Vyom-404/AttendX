@@ -67,3 +67,20 @@ function Dashboard() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
+  const loadSessions = useCallback(async () => {
+    if (!token) return;
+    setError('');
+    try {
+      const result = await apiRequest<{ sessions: AdminSession[] }>('/admin/sessions', token);
+      setSessions(result.sessions || []);
+      setSelectedId((current) => current && result.sessions.some((item) => item._id === current)
+        ? current
+        : result.sessions[0]?._id || '');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not load sessions.');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => { void loadSessions(); }, [loadSessions]);
