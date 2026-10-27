@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { apiRequest, ApiUser } from '@/lib/api';
 import { getFirebaseIdToken, signInWithGoogle, signOutFirebase } from '@/lib/google-auth';
@@ -26,6 +27,12 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
       method: 'POST',
       body: JSON.stringify({ idToken }),
     });
+    if (Platform.OS === 'web' && !result.user.roles.includes('admin')) {
+      setToken(null);
+      setUser(null);
+      await signOutFirebase();
+      throw new Error('Student accounts can sign in only from the phone app.');
+    }
     setToken(result.accessToken);
     setUser(result.user);
   }, []);
