@@ -1,13 +1,16 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 import { apiRequest, ApiUser } from '@/lib/api';
+import { getFirebaseIdToken, signInWithGoogle, signOutFirebase } from '@/lib/google-auth';
 
 type AuthContextValue = {
   token: string | null;
   user: ApiUser | null;
+  authReady: boolean;
   signingIn: boolean;
-  signIn: (studentId: string, secret: string) => Promise<void>;
-  signOut: () => void;
+  signInDev: (studentId: string, secret: string) => Promise<void>;
+  signInGoogle: () => Promise<void>;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -15,15 +18,45 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: React.PropsWithChildren) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<ApiUser | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
 
-  async function signIn(studentId: string, secret: string) {
+  const exchangeFirebaseToken = useCallback(async (idToken: string) => {
+    const result = await apiRequest<{ accessToken: string; user: ApiUser }>('/auth/firebase-session', undefined, {
+      method: 'POST',
+      body: JSON.stringify({ idToken }),
+    });
+    setToken(result.accessToken);
+    setUser(result.user);
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    void getFirebaseIdToken()
+      .then(async (idToken) => {
+        if (idToken) await exchangeFirebaseToken(idToken);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (mounted) setAuthReady(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [exchangeFirebaseToken]);
+
+  async function signInDev(studentId: string, secret: string) {
     setSigningIn(true);
     try {
       const result = await apiRequest<{ accessToken: string; user: ApiUser }>('/auth/dev-session', undefined, {
         method: 'POST',
         body: JSON.stringify({ studentId, secret }),
       });
+      if (!result.user.roles.includes('admin')) {
+        throw new Error('Student accounts can sign in only from the phone app.');
+      }
       setToken(result.accessToken);
       setUser(result.user);
     } finally {
@@ -31,12 +64,23 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
     }
   }
 
-  function signOut() {
-    setToken(null);
-    setUser(null);
+  async function signInGoogle() {
+    setSigningIn(true);
+    try {
+      const idToken = await signInWithGoogle();
+      await exchangeFirebaseToken(idToken);
+    } finally {
+      setSigningIn(false);
+    }
   }
 
-  const value = useMemo(() => ({ token, user, signingIn, signIn, signOut }), [token, user, signingIn]);
+  async function signOut() {
+    setToken(null);
+    setUser(null);
+    await signOutFirebase();
+  }
+
+  const value = { token, user, authReady, signingIn, signInDev, signInGoogle, signOut };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
