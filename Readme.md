@@ -27,6 +27,7 @@
 - [API routes](#api-overview)
 - [Deployment and administration](#deployment-overview)
 - [Face verification implementation review](#python-face-service--code-review)
+- [Contributing](#contributing)
 </details>
 
 AttendX is a student project for hostel attendance. It brings together a student mobile app, a warden dashboard, a Node.js API, MongoDB, Firebase Authentication, and a Python face-verification service.
@@ -458,6 +459,27 @@ Use `.env.example`, `mobile/.env.example`, and `admin/.env.example` as templates
 - Add push notifications when the warden opens a session; students will need to install a newly built APK.
 - Continue testing camera, liveness, location, Google sign-in, and attendance across devices and networks.
 - Tune and document face-match and geofence thresholds using real test outcomes.
+
+## Contributing
+
+Thanks for your interest in improving AttendX!
+
+### Before you start
+
+- Read the README and follow the [local setup guide](#local-development).
+- Open an issue to discuss larger changes before starting work.
+- Never commit `.env` files, Firebase service-account keys, student photos, face embeddings, or real student information.
+
+### Making a change
+
+1. Create a branch for your change.
+2. Keep the change focused and describe the problem it solves.
+3. Run the relevant checks described in the README.
+4. Open a pull request with a clear summary and testing notes.
+
+### Reporting bugs
+
+Open a GitHub issue with steps to reproduce the problem. Remove passwords, tokens, personal data, and face images from screenshots and logs.
 
 ## License and project use
 
