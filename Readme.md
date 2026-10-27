@@ -111,12 +111,14 @@ audited without storing their uploaded images.
 
 ### Development sign-in and admin access
 
-The Android app uses Google sign-in through Firebase Authentication. The API
-verifies the Firebase ID token and accepts only Google accounts whose verified
-email is linked to an active AttendX account. The web dashboard still uses a
-temporary development-only sign-in for admins; it requires
-`ENABLE_DEV_LOGIN=true` and the server-only `DEV_LOGIN_SECRET` in the root
-`.env`. Never put this shared secret in the Expo app.
+Android students and wardens, and web wardens, use Google sign-in through
+Firebase Authentication. The API verifies the Firebase ID token and accepts
+only Google accounts whose verified email is linked to an active AttendX
+account. Web sign-in accepts only accounts with the server-side `admin` role.
+The client needs the Firebase Web app config in `mobile/.env` using the
+`EXPO_PUBLIC_FIREBASE_*` variables from `mobile/.env.example`. These are public
+client configuration values; never put the Firebase Admin private key in the
+Expo app.
 The local `.env` has private development secrets; the actual values are not in
 this README or `.env.example`. Configure `FIREBASE_PROJECT_ID`,
 `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY` in the server root `.env`
@@ -269,10 +271,11 @@ For Expo Go on a physical phone, the API must also listen on the local network:
 temporarily set `API_HOST=0.0.0.0` in the root `.env`, then use the computer's
 LAN IP in `mobile/.env` (for example, `http://192.168.1.20:3000`).
 
-Open the web dashboard by pressing `w` in the Expo terminal; its temporary
-warden sign-in requires an admin account and `DEV_LOGIN_SECRET`. Android Google
-sign-in requires a custom EAS development build and cannot run in Expo Go. From
-`mobile/`, configure EAS and build it with:
+Open the web dashboard by pressing `w` in the Expo terminal and sign in with a
+Google account linked to an AttendX admin. Add the Firebase Web app config to
+`mobile/.env` before starting Expo. Android Google sign-in requires a custom
+EAS development build and cannot run in Expo Go. From `mobile/`, configure EAS
+and build it with:
 
 ```bash
 npx eas-cli@latest build:configure
