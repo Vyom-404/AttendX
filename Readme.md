@@ -4,7 +4,7 @@
   <p><strong>A calmer hostel roll call.</strong></p>
   <p>Students check in from Android. Wardens open sessions and see the roster from a browser.</p>
   <p>
-    <a href="https://linktr.ee/vyomg20082005">Download the app · Warden portal</a>
+    <a href="https://linktr.ee/vyomg20082005"><strong>Get the app · Open the warden portal</strong></a>
     &nbsp;·&nbsp;
     <a href="https://attendx-mobile.vercel.app/">Open warden dashboard</a>
     &nbsp;·&nbsp;
@@ -13,6 +13,21 @@
     <a href="https://attendxfaceservice.vercel.app/health">Check face service</a>
   </p>
 </div>
+
+> **New here?** Start with [how attendance works](#how-attendance-works), then follow the [local setup guide](#local-development) to run AttendX on your computer.
+
+<details>
+  <summary>🧭 Explore the project</summary>
+
+- [Live app links](#live-attendx)
+- [How attendance works](#how-attendance-works)
+- [Project structure and technologies](#project-map)
+- [Run AttendX locally](#local-development)
+- [Student roster and face templates](#student-roster-and-embeddings)
+- [API routes](#api-overview)
+- [Deployment and administration](#deployment-overview)
+- [Face verification implementation review](#python-face-service--code-review)
+</details>
 
 AttendX is a student project for hostel attendance. It brings together a student mobile app, a warden dashboard, a Node.js API, MongoDB, Firebase Authentication, and a Python face-verification service.
 
@@ -173,44 +188,66 @@ The local validation script and endpoint errors help debug the pipeline, but the
 
 ## Local development
 
-### Requirements
+Follow these steps to run the complete app locally. The API, Python face service, and Expo app run as separate processes, so keep each one open in its own terminal.
 
-- Node.js 22 or newer for `api/`; Node.js 24.12 or newer for `admin/`.
-- Python 3.11 recommended for `face-service/`.
-- MongoDB Atlas access and a Firebase project with Google sign-in enabled.
-- A physical Android phone for camera, location, and native Google sign-in checks.
+### Before you begin
 
-### 1. Configure local environment files
+Install:
 
-Copy the templates, then fill in your own values locally:
+- Git.
+- Node.js **24.12 or newer** and npm. This version works across the current API, Expo app, and optional Vite portal.
+- Python **3.11** and `pip`.
+- A MongoDB database (MongoDB Atlas works) and a Firebase project with Google sign-in enabled.
+- For Android device testing: an AttendX development build installed on the phone. The camera, location, and native Google sign-in setup require the development build; Expo Go is not sufficient for this project.
+
+### 1. Get the code
+
+```bash
+git clone https://github.com/Vyom-404/AttendX.git
+cd AttendX
+```
+
+### 2. Create your private environment files
+
+From the repository root, copy the examples:
 
 ```bash
 cp .env.example .env
 cp mobile/.env.example mobile/.env
-cp admin/.env.example admin/.env
 ```
 
-The root `.env` contains server-only variables such as `MONGODB_URI`, Firebase Admin credentials, geofence policy, and `FACE_SERVICE_URL`. The client `.env` files contain only public Firebase web configuration and API base URLs. **Never commit real `.env` files or Firebase Admin service-account keys.**
+Open both files and replace the example values. These files are ignored by Git; keep them private.
 
-For a phone on the same Wi-Fi as your development computer, set `EXPO_PUBLIC_API_URL` in `mobile/.env` to the computer's LAN address, such as `http://192.168.1.20:3000`. Set `API_HOST=0.0.0.0` in the root `.env` so the phone can reach the local API. `localhost` on the phone points to the phone itself.
+In the **root `.env`**, configure:
 
-### 2. Start the face service
+- `MONGODB_URI`: your MongoDB connection string. In Atlas, create a database user and allow your development machine's IP in Network Access.
+- `AUTH_TOKEN_SECRET`: a random value of at least 32 characters. On macOS/Linux, generate one with `openssl rand -hex 32`.
+- `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY`: server credentials from a Firebase Admin service account. Keep the private key only in this root file; write its newlines as `\n` inside the quoted value.
+- `HOSTEL_NAME`, `HOSTEL_CENTER_LAT`, `HOSTEL_CENTER_LON`, `HOSTEL_RADIUS_METERS`, `HOSTEL_MAX_ACCURACY_METERS`, and `HOSTEL_MAX_FIX_AGE_SECONDS`: local test geofence settings. Use numeric values for all settings other than the name.
+- `FACE_SERVICE_URL=http://127.0.0.1:8000`.
+- `API_HOST=0.0.0.0` if testing from a physical phone; use `127.0.0.1` for computer-only development.
 
-From the repository root:
+In **`mobile/.env`**, add the Firebase **Web app** configuration values to the `EXPO_PUBLIC_FIREBASE_*` entries. These are the Firebase client config, not the Admin service-account key. Set `EXPO_PUBLIC_API_URL` to `http://localhost:3000` for browser testing on your computer. For a phone on the same Wi-Fi, use your computer's LAN IP instead, for example `http://192.168.1.20:3000`; `localhost` on the phone means the phone itself.
+
+In Firebase Console, enable Google under **Authentication → Sign-in method** and add `localhost` to the authorized domains. For Android, register the app package `com.vyom.attendx`, add the development build's SHA certificate fingerprint in Firebase, and place the resulting `google-services.json` in `mobile/`. Never put Firebase Admin credentials in the mobile app or commit private keys.
+
+### 3. Start the Python face service
+
+Open Terminal 1 at the repository root:
 
 ```bash
 cd face-service
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 python -m uvicorn face_service.api:app --host 127.0.0.1 --port 8000
 ```
 
-The first run may download model files. Keep this terminal open while using the locally hosted API. Check `http://127.0.0.1:8000/health` or open `http://127.0.0.1:8000/docs`.
+The first run downloads the InsightFace model and can take a while. Leave this terminal running. Check that it is ready at [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health); the interactive API page is at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 
-### 3. Start the API
+### 4. Start the Node API
 
-In another terminal, from the repository root:
+Open Terminal 2 at the repository root:
 
 ```bash
 cd api
@@ -218,11 +255,31 @@ npm ci
 npm run dev
 ```
 
-Check `http://localhost:3000/health`. A healthy local response includes `"database":"connected"`.
+The API connects to MongoDB and listens on port `3000`. Check [http://localhost:3000/health](http://localhost:3000/health); a ready response includes `"status":"ok"` and `"database":"connected"`.
 
-### 4. Start the Expo app
+### 5. Add a local student roster (needed to sign in and check in)
 
-In another terminal:
+Student names, emails, and face photos are private data and are not included in a fresh clone. Create your own `api/students.json` using `api/students.example.json` as a format example. Put **3–10 JPEG or PNG enrollment photos per student** in `face-service/samples/enrollment/<folder>/`, with the folder name matching the manifest's `folder` value. These files are gitignored.
+
+With the face service running and a valid `MONGODB_URI` and `FACE_SERVICE_URL` in the root `.env`, open Terminal 3 at the repository root and run:
+
+```bash
+cd api
+npm ci
+npm run import:students
+```
+
+This generates and saves each student's face template and creates their student account. Link each student's Google email to that account from the `api/` directory:
+
+```bash
+npm run link-google-email -- student_01 student@example.com
+```
+
+Replace the example ID and email; repeat once per student. Google sign-in alone does not create an AttendX account or grant the admin role. To give a linked account warden access, a trusted operator can run `npm run grant-admin -- student_01` from `api/`. Only grant this role to the intended warden.
+
+### 6. Start the web app or Android app
+
+Open Terminal 4 at the repository root:
 
 ```bash
 cd mobile
@@ -230,11 +287,13 @@ npm ci
 npx expo start
 ```
 
-Use the locally installed development APK for native Google sign-in. Expo Go does not provide the native Google sign-in setup used by this project. To run the web version locally, use `npx expo start --web`.
+- **Web dashboard:** press `w` in the Expo terminal or run `npx expo start --web`. Open the local URL Expo prints; the warden screen is at `/admin`.
+- **Android phone:** build and install a development APK once with `npx eas-cli build --platform android --profile development` (requires an Expo account). Then start Expo with `npx expo start` and scan its QR code in the AttendX development build. Make sure the phone and computer are on the same network. If the phone cannot reach the API, confirm `API_HOST=0.0.0.0`, `EXPO_PUBLIC_API_URL` uses the computer's LAN IP, and the computer's firewall allows port `3000`.
+- **Google sign-in on Android:** use the development build configured for this Firebase project. The Expo development server supplies JavaScript; the build supplies the native Android Firebase/Google sign-in integration. `mobile/google-services.json` must match the Firebase project and Android package.
 
-### Optional: run the standalone Vite portal
+### Optional: run the separate Vite admin client
 
-The `admin/` client is separate from the Expo web route. Configure `admin/.env`, then run:
+The current deployed dashboard is the Expo web route in `mobile/`. The repository also contains a standalone Vite client in `admin/`. To run it locally, copy `admin/.env.example` to `admin/.env`, set its `VITE_API_URL` and Firebase Web config, then:
 
 ```bash
 cd admin
@@ -242,7 +301,22 @@ npm ci
 npm run dev
 ```
 
-Vite prints a local URL (usually `http://localhost:5173`). Add that origin to `WEB_ORIGINS` in the API environment if using this client.
+Open the URL Vite prints (usually `http://localhost:5173`). Ensure this origin is included in the API's `WEB_ORIGINS` setting.
+
+### Common setup problems
+
+| Symptom | Check |
+| --- | --- |
+| API exits on startup | Root `.env` has a valid `MONGODB_URI`; Atlas allows your current IP; `AUTH_TOKEN_SECRET` is at least 32 characters. |
+| Health says database disconnected | Verify the Atlas database user/password and connection string. URL-encode special characters in the password. |
+| Face verification is unavailable | Confirm the Python service is running at `http://127.0.0.1:8000` and the root `.env` has the matching `FACE_SERVICE_URL`. |
+| Phone cannot reach the API | Use the computer's LAN IP in `mobile/.env`, bind the API to `0.0.0.0`, and keep phone and computer on the same network. |
+| Google sign-in is rejected | Check Firebase Google sign-in is enabled, the web config matches the project, the Android package/SHA fingerprint is registered, and the Google email is linked to an active AttendX user. |
+| Check-in says no active session or face profile | Import a student roster and have a warden open a session for the configured hostel. |
+
+### What you need to run the full demo
+
+Keep these three services running at the same time: **face service**, **Node API**, and **Expo app**. The API terminal should report that MongoDB is connected; the face service `/health` should return `"status":"ok"`; then open the web dashboard or Android development build. A student can check in only after their account and face template are imported, the Google email is linked, the warden has opened a session, and the phone is inside the configured test geofence.
 
 ## Student roster and embeddings
 
