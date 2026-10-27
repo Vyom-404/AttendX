@@ -104,3 +104,14 @@ function Dashboard() {
   }, [token]);
 
   useEffect(() => { void loadReport(selectedId); }, [selectedId, loadReport]);
+
+  const selected = sessions.find((session) => session._id === selectedId);
+  const presentCount = roster.filter((record) => record.status === 'present').length;
+  const absentCount = roster.filter((record) => record.status === 'absent').length;
+  const filteredRoster = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return roster;
+    return roster.filter((record) =>
+      `${record.name} ${record.studentId} ${record.roomNumber || ''}`.toLowerCase().includes(query),
+    );
+  }, [roster, search]);
