@@ -121,3 +121,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw reason;
     }
   }, []);
+
+  const signOut = useCallback(async () => {
+    await firebaseSignOut(firebaseAuth);
+    setToken(null);
+    setUser(null);
+    setError('');
+    setStatus('signed-out');
+  }, []);
