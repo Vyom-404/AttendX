@@ -109,3 +109,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubscribe();
     };
   }, []);
+
+  const signIn = useCallback(async () => {
+    setError('');
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    try {
+      await signInWithPopup(firebaseAuth, provider);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Google sign-in failed.');
+      throw reason;
+    }
+  }, []);
