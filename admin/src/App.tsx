@@ -207,3 +207,17 @@ function Dashboard() {
         <MetricCard label="Absent" value={absentCount} tone="red" />
         <MetricCard label="Flagged attempts" value={attempts.length} tone="amber" />
       </section>
+
+      <section className="panel report-panel">
+        <div className="panel-heading">
+          <div><h2>Session report</h2><p className="muted">Select a session to see the full roster.</p></div>
+          <button className="button button-secondary" onClick={() => void exportReport()} disabled={!selected}>Export CSV</button>
+        </div>
+        {loading ? <p className="empty-state">Loading sessions…</p> : sessions.length === 0 ? (
+          <p className="empty-state">No sessions yet. Open a session to start tracking attendance.</p>
+        ) : <>
+          <label className="session-select-label">Attendance session
+            <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
+              {sessions.map((session) => <option key={session._id} value={session._id}>{session.title} · {sessionStatus(session)}</option>)}
+            </select>
+          </label>
