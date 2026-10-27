@@ -21,7 +21,7 @@ function sessionState(session: AdminSession) {
 }
 
 export default function AdminDashboard() {
-  const { token, user, signOut } = useAuth();
+  const { token, user, authReady, signOut } = useAuth();
   const isAdmin = Boolean(user?.roles.includes('admin'));
   const [sessions, setSessions] = useState<AdminSession[]>([]);
   const [selectedId, setSelectedId] = useState('');
@@ -152,6 +152,10 @@ export default function AdminDashboard() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not sign out. Please try again.');
     }
+  }
+
+  if (!authReady) {
+    return <SafeAreaView style={styles.safe}><View style={styles.centered}><ActivityIndicator color={C.coral} /><Text style={[styles.mutedText, { marginTop: 12 }]}>Restoring your warden sign-in…</Text></View></SafeAreaView>;
   }
 
   if (!isAdmin) {
