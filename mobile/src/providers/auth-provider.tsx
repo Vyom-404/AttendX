@@ -9,7 +9,6 @@ type AuthContextValue = {
   user: ApiUser | null;
   authReady: boolean;
   signingIn: boolean;
-  signInDev: (studentId: string, secret: string) => Promise<void>;
   signInGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -54,23 +53,6 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
     };
   }, [exchangeFirebaseToken]);
 
-  async function signInDev(studentId: string, secret: string) {
-    setSigningIn(true);
-    try {
-      const result = await apiRequest<{ accessToken: string; user: ApiUser }>('/auth/dev-session', undefined, {
-        method: 'POST',
-        body: JSON.stringify({ studentId, secret }),
-      });
-      if (!result.user.roles.includes('admin')) {
-        throw new Error('Student accounts can sign in only from the phone app.');
-      }
-      setToken(result.accessToken);
-      setUser(result.user);
-    } finally {
-      setSigningIn(false);
-    }
-  }
-
   async function signInGoogle() {
     setSigningIn(true);
     try {
@@ -87,7 +69,7 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
     await signOutFirebase();
   }
 
-  const value = { token, user, authReady, signingIn, signInDev, signInGoogle, signOut };
+  const value = { token, user, authReady, signingIn, signInGoogle, signOut };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
