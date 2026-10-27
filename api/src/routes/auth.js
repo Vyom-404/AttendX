@@ -3,7 +3,7 @@ import { getDatabase } from "../config/database.js";
 import { ApiError } from "../lib/api-error.js";
 import { rateLimit } from "../middleware/rate-limit.js";
 import { getFirebaseAuth } from "../security/firebase-auth.js";
-import { createAccessToken, equalSecret } from "../security/tokens.js";
+import { createAccessToken, equalSecret, getAccessTokenLifetimeSeconds } from "../security/tokens.js";
 import { writeAuditEvent } from "../services/audit.js";
 
 const router = Router();
@@ -43,7 +43,7 @@ router.post("/dev-session", loginLimit, async (request, response) => {
   response.json({
     accessToken: createAccessToken(user.studentId),
     tokenType: "Bearer",
-    expiresInSeconds: 900,
+    expiresInSeconds: getAccessTokenLifetimeSeconds(),
     user,
   });
 });
@@ -99,7 +99,7 @@ router.post("/firebase-session", loginLimit, async (request, response) => {
   response.json({
     accessToken: createAccessToken(user.studentId),
     tokenType: "Bearer",
-    expiresInSeconds: 900,
+    expiresInSeconds: getAccessTokenLifetimeSeconds(),
     user,
   });
 });

@@ -1,6 +1,15 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-const TOKEN_LIFETIME_SECONDS = 15 * 60;
+const DEFAULT_TOKEN_LIFETIME_SECONDS = 7 * 24 * 60 * 60;
+const MAX_TOKEN_LIFETIME_SECONDS = 30 * 24 * 60 * 60;
+
+export function getAccessTokenLifetimeSeconds() {
+  const value = Number(process.env.AUTH_TOKEN_LIFETIME_SECONDS || DEFAULT_TOKEN_LIFETIME_SECONDS);
+  if (!Number.isInteger(value) || value < 60 || value > MAX_TOKEN_LIFETIME_SECONDS) {
+    throw new Error("AUTH_TOKEN_LIFETIME_SECONDS must be between 60 and 2592000");
+  }
+  return value;
+}
 
 function secret() {
   const value = process.env.AUTH_TOKEN_SECRET;
@@ -21,7 +30,7 @@ function signature(input) {
 export function createAccessToken(studentId) {
   const issuedAt = Math.floor(Date.now() / 1000);
   const head = encode({ alg: "HS256", typ: "JWT" });
-  const payload = encode({ sub: studentId, iat: issuedAt, exp: issuedAt + TOKEN_LIFETIME_SECONDS });
+  const payload = encode({ sub: studentId, iat: issuedAt, exp: issuedAt + getAccessTokenLifetimeSeconds() });
   const input = `${head}.${payload}`;
   return `${input}.${signature(input)}`;
 }

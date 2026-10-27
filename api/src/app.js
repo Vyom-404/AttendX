@@ -10,7 +10,7 @@ import adminRoutes from "./routes/admin.js";
 
 const app = express();
 const allowedWebOrigins = new Set(
-  (process.env.WEB_ORIGINS || "http://localhost:8081,http://127.0.0.1:8081")
+  (process.env.WEB_ORIGINS || "http://localhost:8081,http://127.0.0.1:8081,http://localhost:5173,http://127.0.0.1:5173")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean),
