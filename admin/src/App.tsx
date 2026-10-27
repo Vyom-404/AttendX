@@ -200,3 +200,10 @@ function Dashboard() {
         <label>Duration in minutes<input type="number" min="5" max="720" value={duration} onChange={(event) => setDuration(event.target.value)} /></label>
         <button className="button button-primary" onClick={() => void createSession()} disabled={busy}>{busy ? 'Opening…' : 'Open session'}</button>
       </section>}
+
+      <section className="metrics-grid" aria-label="Attendance totals">
+        <MetricCard label="Students" value={roster.length} />
+        <MetricCard label="Present" value={presentCount} tone="green" />
+        <MetricCard label="Absent" value={absentCount} tone="red" />
+        <MetricCard label="Flagged attempts" value={attempts.length} tone="amber" />
+      </section>
