@@ -129,3 +129,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError('');
     setStatus('signed-out');
   }, []);
+
+  const value = useMemo(() => ({
+    status, token, user, error, signIn, signOut, clearError: () => setError(''),
+  }), [status, token, user, error, signIn, signOut]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used inside AuthProvider');
+  return context;
+}
