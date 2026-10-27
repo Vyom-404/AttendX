@@ -221,3 +221,17 @@ function Dashboard() {
               {sessions.map((session) => <option key={session._id} value={session._id}>{session.title} · {sessionStatus(session)}</option>)}
             </select>
           </label>
+          {selected && <div className="selected-session"><div><strong>{selected.title}</strong><p className="muted">{new Date(selected.startAt).toLocaleString()} · ends {new Date(selected.endAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p></div>
+            {sessionStatus(selected) !== 'Closed' && <button className="button button-danger" onClick={() => void closeSession()}>Close session</button>}
+          </div>}
+          <label className="search-field">Search students<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, student ID, or room" /></label>
+          <div className="table-scroll"><table><thead><tr><th>Student</th><th>Room</th><th>Status</th><th>Checked in</th></tr></thead>
+            <tbody>{filteredRoster.map((record) => <tr key={record.studentId}><td><strong>{record.name}</strong><small>{record.studentId}</small></td><td>{record.roomNumber?.trim() || '—'}</td><td><span className={`status status-${record.status}`}>{record.status}</span></td><td>{record.markedAt ? new Date(record.markedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—'}</td></tr>)}</tbody>
+          </table></div>
+          {filteredRoster.length === 0 && <p className="empty-state">{roster.length === 0 ? 'No students are assigned to this hostel yet.' : 'No students match your search.'}</p>}
+        </>}
+      </section>
+      <p className="footnote">Attendance status is determined by the AttendX API. Room numbers come from the private student roster.</p>
+    </main>
+  );
+}
