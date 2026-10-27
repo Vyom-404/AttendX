@@ -303,7 +303,7 @@ This updates roster details without reprocessing face photos. Leave
 
 ## What is not built yet
 
-- Firebase Google sign-in for the web dashboard and physical-device end-to-end validation of camera/location attendance.
+- Physical-device end-to-end validation of camera/location attendance at the hostel.
 - A production college identity provider; current sign-in is for local development.
 - Room numbers have not yet been filled into the private student manifest.
 - Production deployment and a full evaluation report.
