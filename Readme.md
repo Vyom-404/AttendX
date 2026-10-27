@@ -1,314 +1,259 @@
 # AttendX
 
-AttendX is a student attendance app we are building. The goal is for a student to
-open the mobile app during an attendance session, take a fresh selfie in the
-app, and have the backend check that the face is live and matches that student's
-saved face template.
+> **A calmer hostel roll call.** Students check in from the AttendX Android app; wardens open attendance sessions and see the roster from a browser.
 
-## How the parts fit together
+AttendX is a student project for hostel attendance. It combines a student mobile app, a warden dashboard, a Node.js API, MongoDB, and a Python face-verification service.
 
-Think of AttendX as three programs that will work together:
+## Live AttendX
 
-| Part | What it does | Current status |
+| Service | Link | What it is |
 | --- | --- | --- |
-| `mobile/` | Expo phone app for student attendance and warden access on a phone. | Camera capture, foreground location, and native Google sign-in through Firebase are connected. |
-| `admin/` | Standalone web portal for wardens using a laptop or browser. | Firebase Google sign-in, session management, attendance reports, search, and CSV export are connected in code. |
-| `api/` | The Node.js/Express backend. It handles authentication, sessions, location policy, attendance, and reports. | MVP API routes and MongoDB records are implemented, including optional room numbers in session rosters and exports. |
-| `face-service/` | The Python service that uses InsightFace to detect faces, check liveness, and make/compare face templates. | Local photo checks and HTTP endpoints are set up. |
-| MongoDB Atlas | Stores student accounts, face templates, hostel policy, sessions, attendance, and audit events. | Four named student templates are saved; attendance collections/indexes are created by the API. |
+| Warden dashboard | [attendx-mobile.vercel.app](https://attendx-mobile.vercel.app/) | Google sign-in, open/close sessions, live roster, flagged check-in attempts, CSV export. |
+| Node API health | [attend-x-xi.vercel.app/health](https://attend-x-xi.vercel.app/health) | API and MongoDB connectivity status. |
+| Face service health | [attendxfaceservice.vercel.app/health](https://attendxfaceservice.vercel.app/health) | InsightFace model and liveness-service status. |
+| Student app | Android APK distributed privately | Students sign in and submit attendance from their phone. |
 
-### A few terms in plain language
+The current public web deployment is built from `mobile/` and includes the warden screen. `admin/` is a separate Vite web client in the repository; it is not the deployment linked above.
 
-- **Uvicorn** runs the Python face service so other programs can send it images.
-- **Express** runs the Node.js backend. It will coordinate the app, face service,
-  and MongoDB.
-- **Embedding** is a list of 512 numbers InsightFace creates from a face. It acts
-  like a compact mathematical representation for comparing faces; it is not the
-  original photo.
-- **Template** is the single embedding made by averaging several usable
-  reference-photo embeddings for one student.
-- **Liveness** checks whether the submitted camera image appears to show a live
-  person. It is a useful check, but it should not be treated as perfect proof by
-  itself.
+## How attendance works
 
-**Model license:** The InsightFace library code and its pretrained weights have
-different terms. InsightFace states that its public pretrained model packs,
-including `buffalo_l`, are for non-commercial research use; commercial use needs
-separate authorization. Check the [official model-zoo license notice](https://github.com/deepinsight/insightface/blob/master/model_zoo/README.md)
-before any use beyond a non-commercial student project. The RGB liveness addon
-is distributed separately; check its [applicable notices](https://github.com/deepinsight/insightface/blob/master/python-package/docs/liveness.md)
-as well.
-
-## What happens when reference photos are imported
-
-The current importer is a local command for preparing the students whose
-reference photos you already have. It is not a screen or endpoint that students
-use to enroll themselves.
-
-1. You list each student's ID, name, and photo-folder name in `api/students.json`.
-2. The importer sends that folder's JPEG/PNG photos to the Python face service
-   running on your computer.
-3. InsightFace checks the photos, rejects unusable or non-live images, and
-   creates one 512-number template from the accepted photos.
-4. The importer saves the student record and template in MongoDB's `students`
-   collection. The original photos are not saved to MongoDB by this importer.
-
-A saved record is conceptually like this (the vector below is shortened):
-
-```text
-studentId: "student_01"
-name: "Student One"
-status: "active"
-faceTemplate:
-  model: "buffalo_l"
-  dimension: 512
-  embedding: [512 numbers; abbreviated]
-  acceptedImages: 5
+```mermaid
+flowchart LR
+  W[Warden dashboard] -->|Start session| API[AttendX Node API]
+  API --> DB[(MongoDB Atlas)]
+  S[Student Android app] -->|Google sign-in| FB[Firebase Authentication]
+  S -->|Three camera frames and location| API
+  API -->|Image frames and saved template| FACE[InsightFace face service]
+  FACE -->|Liveness and face-match scores| API
+  API -->|Record attendance or rejection| DB
+  W -->|Roster and flagged attempts| API
 ```
 
-The `students` collection and its unique student-ID index are created when the
-backend or importer connects to MongoDB. MongoDB creates the database when the
-first collection or record is created.
+1. A warden signs in with an authorized Google account and opens an attendance session.
+2. A student signs in with the Google account linked to their active AttendX record.
+3. During an open session, the student captures three images with the in-app front camera and submits a fresh location fix. There is no gallery upload path.
+4. The API checks the session, student account, hostel geofence, and duplicate-attendance rule. It sends each image to the face service for liveness and matching checks.
+5. The API records attendance only when the checks pass. It records rejected attempts with reason codes so the warden can review them.
 
-## Node API that is implemented
+The warden dashboard shows students as present or away, their room numbers, and the most recent rejected attempts for the selected session. A rejected attempt is a review signal; it is not by itself proof of misconduct.
 
-The Node API, rather than the mobile app, makes the final attendance decision.
-It authenticates the account, checks the session and hostel, validates the
-location fix and geofence on the server, sends the camera image and stored
-template to the private Python service, applies a configurable face threshold,
-and writes one attendance record. It never trusts a client-provided
-`faceVerified`, `livenessPassed`, or `locationVerified` flag.
+## Project map
 
-The selfie is held in memory while it is forwarded to the Python service. The
-Node API does not write the capture to disk or MongoDB. The audit record stores
-safe outcome codes and a minimized location summary, not the exact coordinates
-or face embedding.
+| Directory | Purpose |
+| --- | --- |
+| `mobile/` | Expo Router student app, phone warden screen, and the web build currently deployed to Vercel. |
+| `admin/` | Standalone Vite warden portal client. |
+| `api/` | Node.js 22+ and Express API, MongoDB access, Firebase token verification, roster import tools. |
+| `face-service/` | Python FastAPI service using InsightFace for face embeddings, liveness, and matching. |
+| `.env.example` | Root backend configuration template; contains placeholders only. |
 
-The API currently requires three still frames. The planned mobile camera should
-capture them in quick succession. The Python service performs its liveness
-check and face comparison on each frame; the Node API uses the median of the
-three similarity scores. This is a small-project baseline, not a guarantee
-against video replay or camera injection.
+## Technology
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| `POST` | `/auth/dev-session` | Development-only sign-in for an imported student account. |
-| `GET` | `/me` | Current account and whether a face template is available. |
-| `GET` | `/sessions/active` | Current session for the signed-in student's hostel. |
-| `POST` | `/attendance` | Multipart 3-frame camera capture + session + fresh location; server checks and records attendance. |
-| `GET` | `/attendance/me` | Signed-in student's own attendance and recent rejection reasons. |
-| `POST` | `/admin/sessions` | Create a session for an assigned hostel. |
-| `GET` | `/admin/sessions` | List sessions for assigned hostels. |
-| `PATCH` | `/admin/sessions/:id` | Update or close an assigned session. |
-| `GET` | `/admin/sessions/:id/attendance` | Session roster with present/absent status. |
-| `GET` | `/admin/sessions/:id/attempts` | Safe rejection reason codes for a session. |
-| `GET` | `/admin/sessions/:id/export` | Download the assigned session roster as CSV. |
-| `PATCH` | `/admin/sessions/:id/attendance/:attendanceId/review` | Add a manual-review note to a record. |
+- **Mobile and web:** Expo SDK 58, React Native, Expo Router, TypeScript.
+- **Warden portal:** React, TypeScript, Vite (in `admin/`).
+- **API:** Node.js, Express, MongoDB Node driver.
+- **Database:** MongoDB Atlas.
+- **Authentication:** Firebase Authentication with Google sign-in; the API validates Firebase ID tokens and checks server-side account roles.
+- **Face service:** Python, FastAPI, OpenCV, InsightFace `buffalo_l`, ONNX Runtime, liveness add-on.
+- **Hosting:** Vercel for the API, face service, and current web deployment; EAS Build for Android APKs.
 
-The attendance collection has a unique `{ studentId, sessionId }` index, so
-concurrent duplicate submissions cannot create two present records. The server
-uses its own clock for session eligibility. Rejected attendance attempts are
-audited without storing their uploaded images.
+## Face templates and privacy
 
-### Development sign-in and admin access
+The local roster importer processes reference photos into a normalized 512-number face embedding (template) for each student and saves the template with the student record in MongoDB. The importer does not save the original reference photos to MongoDB. Attendance captures are held in memory while being checked and are not written to disk or stored in MongoDB.
 
-The Expo phone app is in `mobile/`; the standalone warden web portal is in
-`admin/`. Both use Google sign-in through Firebase Authentication. The API
-verifies Firebase ID tokens and accepts only Google accounts whose verified
-email is linked to an active AttendX account. The web portal requires the
-server-side `admin` role. Configure its Firebase Web app values in `admin/.env`
-using `admin/.env.example`. These are public client configuration values; never
-put the Firebase Admin private key in either client app.
-Firebase keeps the sign-in session across app restarts, and API access tokens
-last seven days by default (`AUTH_TOKEN_LIFETIME_SECONDS` in the root `.env`).
-The local `.env` has private development secrets; the actual values are not in
-this README or `.env.example`. Configure `FIREBASE_PROJECT_ID`,
-`FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY` in the server root `.env`
-using a Firebase service account. Keep the private key on the server; never put
-it in the Expo app or commit it.
+The database stores student and user records, face templates, hostel/geofence settings, attendance sessions, attendance records, and audit events. Rejected-attempt audit events contain safe reason codes and request metadata, not the submitted images. The API does not trust client-provided “face passed” or “location passed” flags.
 
-Imported students receive the `student` role. The private manifest may include
-an optional `roomNumber` for admin rosters and exports. To grant a student admin access
-from a trusted local terminal after starting the API once, run:
+Liveness and face matching reduce some forms of misuse but are not perfect proof of identity or presentation. Thresholds and geofence settings need careful validation with representative captures and real GPS accuracy before relying on them.
+
+**Model terms:** InsightFace code and its pretrained weights have separate terms. The public `buffalo_l` pretrained pack is restricted to non-commercial research use according to the [InsightFace model-zoo notice](https://github.com/deepinsight/insightface/tree/master/model_zoo). Check the [liveness add-on terms](https://github.com/deepinsight/insightface/blob/master/python-package/docs/liveness.md) as well.
+
+## Local development
+
+### Requirements
+
+- Node.js 22 or newer for `api/`; Node.js 24.12 or newer for `admin/`.
+- Python 3.11 recommended for `face-service/`.
+- MongoDB Atlas access and a Firebase project with Google sign-in enabled.
+- A physical Android phone for camera, location, and native Google sign-in checks.
+
+### 1. Configure local environment files
+
+Copy the templates, then fill in your own values locally:
 
 ```bash
-cd api
-npm run grant-admin -- student_01
+cp .env.example .env
+cp mobile/.env.example mobile/.env
+cp admin/.env.example admin/.env
 ```
 
-Replace `student_01` with the account authorized to administer the hostel. The
-admin's hostel assignment is stored server-side; the client cannot grant itself
-roles. Use this only when the student account should also have admin privileges.
+The root `.env` contains server-only variables such as `MONGODB_URI`, Firebase Admin credentials, geofence policy, and `FACE_SERVICE_URL`. The client `.env` files contain only public Firebase web configuration and API base URLs. **Never commit real `.env` files or Firebase Admin service-account keys.**
 
-To create a separate administrator account, use a distinct `admin_...` ID. This
-command moves the supplied email link off the student account while leaving its
-student role intact:
+For a phone on the same Wi-Fi as your development computer, set `EXPO_PUBLIC_API_URL` in `mobile/.env` to the computer's LAN address, such as `http://192.168.1.20:3000`. Set `API_HOST=0.0.0.0` in the root `.env` so the phone can reach the local API. `localhost` on the phone points to the phone itself.
 
-```bash
-npm run create-admin -- admin_vyom "Vyom Gupta" YOUR_GOOGLE_EMAIL student_01
-```
+### 2. Start the face service
 
-The admin account can use the temporary development sign-in with `admin_vyom`.
-To link an active student or admin account to its Google email from a trusted
-local terminal, run:
-
-```bash
-cd api
-npm run link-google-email -- student_06 PERSONS_GOOGLE_EMAIL
-```
-
-Each Google email can belong to only one AttendX account. The API accepts a
-Firebase ID token only when Firebase confirms a Google sign-in with a verified
-email linked to an active user; it does not create AttendX accounts during
-sign-in.
-
-### Hostel location and face threshold configuration
-
-The local `.env` currently contains an initial Uniworld pin and a 150 m radius,
-with a 50 m maximum GPS accuracy and 30-second maximum fix age. Treat these as
-starting values and validate them with real phone GPS fixes inside and outside
-the hostel before relying on them. Keep the real location settings in the local
-`.env`; the tracked example uses placeholders:
-
-```env
-HOSTEL_ID=hostel_demo
-HOSTEL_NAME=Your Hostel Name
-HOSTEL_CENTER_LAT=SET_ME
-HOSTEL_CENTER_LON=SET_ME
-HOSTEL_RADIUS_METERS=SET_ME
-HOSTEL_MAX_ACCURACY_METERS=SET_ME
-HOSTEL_MAX_FIX_AGE_SECONDS=SET_ME
-```
-
-The API seeds a valid geofence into MongoDB on startup. Until the geofence is
-configured, attendance submissions fail safely. `FACE_MATCH_THRESHOLD` is
-currently `0.70` as a development starting point. It must be evaluated against
-genuine and different-person captures before relying on it for the demo.
-
-The current attendance request is authenticated multipart data. It sends
-`sessionId`, `latitude`, `longitude`, `accuracyMeters`, `locationTimestamp`, and
-three repeated `captures` image fields. The client sends no face-match or
-geofence pass/fail flags; the API computes those decisions.
-
-## Import the current student photos
-
-### 1. Prepare a private student list
-
-Copy `api/students.example.json` to `api/students.json`. Edit the names and IDs
-to match your students. The `folder` value must match a folder under
-`face-service/samples/enrollment/`.
-
-For example, `"folder": "student_01"` means the photos go in:
-
-```text
-face-service/samples/enrollment/student_01/
-```
-
-Put 3–10 clear JPEG or PNG reference photos in each folder. Both
-`face-service/samples/` and `api/students.json` are excluded from Git, so your
-photos and private student list are not committed.
-
-### 2. Start the Python face service
-
-From the project root, in Terminal 1:
+From the repository root:
 
 ```bash
 cd face-service
+python3 -m venv .venv
 source .venv/bin/activate
+pip install -r requirements.txt
 python -m uvicorn face_service.api:app --host 127.0.0.1 --port 8000
 ```
 
-Leave this terminal running. Uvicorn is now listening for requests from your
-computer. The interactive face-service page is at
-`http://127.0.0.1:8000/docs`.
+The first run may download model files. Keep this terminal open while using the locally hosted API. Check `http://127.0.0.1:8000/health` or open `http://127.0.0.1:8000/docs`.
 
-### 3. Import and save templates
+### 3. Start the API
 
-From the project root, in Terminal 2:
+In another terminal, from the repository root:
+
+```bash
+cd api
+npm ci
+npm run dev
+```
+
+Check `http://localhost:3000/health`. A healthy local response includes `"database":"connected"`.
+
+### 4. Start the Expo app
+
+In another terminal:
+
+```bash
+cd mobile
+npm ci
+npx expo start
+```
+
+Use the locally installed development APK for native Google sign-in. Expo Go does not provide the native Google sign-in setup used by this project. To run the web version locally, use `npx expo start --web`.
+
+### Optional: run the standalone Vite portal
+
+The `admin/` client is separate from the Expo web route. Configure `admin/.env`, then run:
+
+```bash
+cd admin
+npm ci
+npm run dev
+```
+
+Vite prints a local URL (usually `http://localhost:5173`). Add that origin to `WEB_ORIGINS` in the API environment if using this client.
+
+## Student roster and embeddings
+
+The private manifest `api/students.json` maps AttendX student IDs and names to reference-photo folders. It is gitignored. Reference photos belong under `face-service/samples/enrollment/<student-folder>/` and are gitignored too.
+
+For each student, use 3–10 clear JPEG or PNG photos. To import or refresh templates, start the face service, configure the root `.env` with the local face-service URL and MongoDB URI, then run:
 
 ```bash
 cd api
 npm run import:students
 ```
 
-The importer connects to MongoDB using `MONGODB_URI` from the root `.env`. You
-do not need to run the Express server for this command. A successful import
-prints one “template saved” message per student. Running it again for an existing
-student ID replaces that student's template.
-
-### 4. Run the Express API
-
-From the project root, in another terminal:
+The importer creates or updates student templates and account records. The API also supports syncing roster details (such as room numbers) without regenerating embeddings:
 
 ```bash
 cd api
-npm run dev
+npm run sync:roster
 ```
 
-The API creates its indexes and imported student-account records on startup.
-Open `http://localhost:3000/health`. A response with
-`"database":"connected"` means the backend can reach MongoDB.
+Keep the photo folders and `api/students.json` private. Do not upload students' reference or verification photos to GitHub.
 
-### 5. Run the Expo app
+## API overview
 
-In a separate terminal:
+All API routes are served from the Node API base URL.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | API and MongoDB health. |
+| `POST` | `/auth/firebase-session` | Exchange a verified Firebase Google sign-in for an AttendX API session. |
+| `POST` | `/auth/dev-session` | Development-only sign-in when explicitly enabled. |
+| `GET` | `/me` | Current account and face-profile state. |
+| `GET` | `/sessions/active` | Current open attendance session for the student. |
+| `POST` | `/attendance` | Submit three camera captures and a location fix for server-side verification. |
+| `GET` | `/attendance/me` | The signed-in student's records and recent rejected attempts. |
+| `POST` | `/admin/sessions` | Create an attendance session. |
+| `GET` | `/admin/sessions` | List sessions visible to the signed-in warden. |
+| `PATCH` | `/admin/sessions/:id` | Update or close a session. |
+| `GET` | `/admin/sessions/:id/attendance` | Present/away roster for a session. |
+| `GET` | `/admin/sessions/:id/attempts` | Recent rejected-attempt reason codes. |
+| `GET` | `/admin/sessions/:id/export` | Download the session roster as CSV. |
+| `PATCH` | `/admin/sessions/:id/attendance/:attendanceId/review` | Attach a manual-review note to a record. |
+
+The API applies authentication and role checks to admin routes. A unique `{ studentId, sessionId }` index prevents duplicate attendance records for one student in one session.
+
+## Deployment overview
+
+The current public deployments are:
+
+- **API:** `https://attend-x-xi.vercel.app`
+- **Face service:** `https://attendxfaceservice.vercel.app`
+- **Web dashboard:** `https://attendx-mobile.vercel.app`
+- **Android:** EAS `preview` profile builds an internally distributed APK.
+
+Production configuration is entered in each hosting service's environment settings, not in Git. Important server variables include `MONGODB_URI`, `FACE_SERVICE_URL`, `WEB_ORIGINS`, `AUTH_TOKEN_SECRET`, `AUTH_TOKEN_LIFETIME_SECONDS`, `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, and the `HOSTEL_*` geofence settings. The API's `WEB_ORIGINS` must include the deployed web origin. Firebase Authentication's authorized domains must include the dashboard's hostname.
+
+The web build from `mobile/` uses the `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_FIREBASE_*` values at build time. The Android EAS build also needs `EXPO_PUBLIC_API_URL` in the EAS `preview` environment. Public Firebase client config may be included in a client build; Firebase Admin private credentials and MongoDB credentials must remain server-side.
+
+To build a new Android APK from `mobile/`:
 
 ```bash
 cd mobile
-cp .env.example .env
+npx eas-cli build --platform android --profile preview
 ```
 
-Set `EXPO_PUBLIC_API_URL` in `mobile/.env` to the computer running the API. For a
-phone on the same Wi-Fi, use the computer's local network IP. Then run:
+The current APK supports camera capture, foreground location, and Google sign-in. **Push notifications are not implemented yet**; adding them will require notification credentials and a new Android build.
+
+## Warden administration
+
+Only accounts with the `admin` role can manage sessions or view hostel reports. Google sign-in does not automatically grant admin access. Assign roles from a trusted local terminal using the API scripts. For example:
 
 ```bash
-npm start
+cd api
+npm run grant-admin -- student_01
 ```
 
-For Expo Go on a physical phone, the API must also listen on the local network:
-temporarily set `API_HOST=0.0.0.0` in the root `.env`, then use the computer's
-LAN IP in `mobile/.env` (for example, `http://192.168.1.20:3000`).
-
-### 6. Run the admin web portal
-
-Copy `admin/.env.example` to `admin/.env`; fill its Firebase Web config from the
-Firebase console or the public config already in `mobile/.env`. Add
-`http://localhost:5173` to `WEB_ORIGINS` in the root `.env` if that variable is
-already set. From `admin/`, run `npm install` once, then `npm run dev`.
-
-### 7. Build the Android development app
-
-Android Google sign-in requires a custom EAS development build and cannot run
-in Expo Go. From `mobile/`, configure EAS and build it with:
+Replace the example ID with the intended account. Use the separate-account helper if the warden needs a distinct admin identity:
 
 ```bash
-npx eas-cli@latest build:configure
-npx eas-cli@latest build --platform android --profile development
+cd api
+npm run create-admin -- admin_vyom "Warden Name" warden@example.com student_01
 ```
 
-The EAS Android signing fingerprint is registered in Firebase. After updating
-`mobile/google-services.json`, build a fresh development APK to include the
-Firebase OAuth client configuration. A user needs the server-side `admin` role
-to open the admin dashboard.
+The final argument is the existing student ID whose Google email should be moved to the separate admin account. Replace it with the intended source account ID.
 
-To show room numbers in the roster, add an optional `roomNumber` to each entry
-in the private `api/students.json`, then run `npm run sync:roster` from `api/`.
-This updates roster details without reprocessing face photos. Leave
-`roomNumber` empty if a room is not assigned.
+The API access token lifetime is controlled by `AUTH_TOKEN_LIFETIME_SECONDS` (the example default is seven days). Firebase-backed sign-in must use an email already linked to an active AttendX user.
 
-## Keep secrets and biometric data private
+## Environment variable reference
 
-- Put the real MongoDB connection string in the root `.env`; never paste it into
-  chat or commit it to Git.
-- `.env.example` shows the variable names and placeholder format only.
-- Keep student photos and `api/students.json` private. They are gitignored.
-- The current enrollment importer is a local developer tool. Do not expose it as
-  a public student endpoint.
+| Variable | Used by | Notes |
+| --- | --- | --- |
+| `MONGODB_URI` | API, import scripts | MongoDB Atlas connection string; secret. |
+| `FACE_SERVICE_URL` | API | Base URL of the Python face service. |
+| `WEB_ORIGINS` | API | Comma-separated browser origins allowed by CORS. |
+| `AUTH_TOKEN_SECRET` | API | Private signing secret; keep server-side. |
+| `AUTH_TOKEN_LIFETIME_SECONDS` | API | AttendX API token duration. |
+| `FIREBASE_PROJECT_ID` | API | Firebase project used to verify ID tokens. |
+| `FIREBASE_CLIENT_EMAIL` | API | Firebase Admin service-account email. |
+| `FIREBASE_PRIVATE_KEY` | API | Firebase Admin service-account private key; secret. |
+| `HOSTEL_ID`, `HOSTEL_NAME` | API | Hostel identity and display name. |
+| `HOSTEL_CENTER_LAT`, `HOSTEL_CENTER_LON` | API | Geofence center; keep real values out of public docs. |
+| `HOSTEL_RADIUS_METERS` | API | Allowed distance from geofence center. |
+| `HOSTEL_MAX_ACCURACY_METERS`, `HOSTEL_MAX_FIX_AGE_SECONDS` | API | Location quality limits. |
+| `FACE_MATCH_THRESHOLD` | API | Minimum face-match score policy. |
+| `EXPO_PUBLIC_API_URL` | Expo app | API base URL compiled into the app. |
+| `EXPO_PUBLIC_FIREBASE_*` | Expo web sign-in | Public Firebase Web app config; no Admin key. |
+| `VITE_API_URL`, `VITE_FIREBASE_*` | `admin/` client | Config for the separate Vite portal only. |
 
-## What is not built yet
+Use `.env.example`, `mobile/.env.example`, and `admin/.env.example` as templates. Do not paste production secret values into documentation, issues, or source control.
 
-- Physical-device end-to-end validation of camera/location attendance at the hostel.
-- A production college identity provider; current sign-in is for local development.
-- Room numbers have not yet been filled into the private student manifest.
-- Production deployment and a full evaluation report.
-- Face-match threshold calibration with a larger, representative photo set.
+## Current roadmap
+
+- Add push notifications when the warden opens a session; students will need to install a newly built APK.
+- Continue testing camera, liveness, location, Google sign-in, and attendance across devices and networks.
+- Tune and document face-match and geofence thresholds using real test outcomes.
+
+## License and project use
+
+AttendX is a personal student project and is not intended for commercial use. The model and dependency licenses still apply; consult their upstream notices before redistributing model files or changing the project's use.
