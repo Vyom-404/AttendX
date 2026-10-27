@@ -6,13 +6,14 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { File } from 'expo-file-system';
 
+import { BrandMark } from '@/components/BrandMark';
 import { apiRequest } from '@/lib/api';
 import { useAuth } from '@/providers/auth-provider';
 
 type Capture = { uri: string; name: string };
 type AttendanceResult = { status: 'present'; markedAt: string };
 
-const COLORS = { ink: '#18352E', muted: '#73847D', blue: '#1D604B', navy: '#153F35', paper: '#F5F3EB', white: '#FFFFFF', line: '#E7E8DD', red: '#9D3931', lime: '#D9F17F' };
+const COLORS = { ink: '#2B1D36', muted: '#897B8B', accent: '#FF795F', navy: '#2B1D36', paper: '#F7F1E8', white: '#FFFCF7', line: '#EAE0D8', red: '#A43F45', gold: '#F2C36B' };
 type Feedback = { kind: 'info' | 'error' | 'success'; text: string };
 
 export default function CaptureScreen() {
@@ -98,15 +99,16 @@ export default function CaptureScreen() {
   }
 
   if (!permission) {
-    return <ScreenFrame><ActivityIndicator color={COLORS.blue} /></ScreenFrame>;
+    return <ScreenFrame><ActivityIndicator color={COLORS.accent} /></ScreenFrame>;
   }
 
   if (!permission.granted) {
     return (
       <ScreenFrame>
-        <Text style={styles.eyebrow}>ATTENDANCE CHECK</Text>
+        <BrandMark size={54} />
+        <Text style={styles.eyebrow}>ONE QUICK CHECK-IN</Text>
         <Text style={styles.title}>Allow camera access</Text>
-        <Text style={styles.copy}>AttendX takes three fresh frames directly from the front camera. It does not offer a gallery picker.</Text>
+        <Text style={styles.copy}>We’ll use the front camera for a quick live check. Photos can’t be chosen from your gallery.</Text>
         <Pressable onPress={() => { void requestPermission().catch((reason) => setFeedback({ kind: 'error', text: reason instanceof Error ? reason.message : 'Could not request camera access.' })); }} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Allow camera</Text></Pressable>
         {feedback && <Text accessibilityRole="alert" style={styles.errorMessage}>{feedback.text}</Text>}
         <Pressable onPress={() => router.back()} style={styles.backButton}><Text style={styles.backText}>Go back</Text></Pressable>
@@ -117,17 +119,17 @@ export default function CaptureScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.page}>
-        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backButton}><Text style={styles.backText}>‹  Back</Text></Pressable>
-        <Text style={styles.eyebrow}>ATTENDANCE CHECK</Text>
-        <Text style={styles.title}>{success ? 'You’re checked in' : 'Take your live selfie'}</Text>
-        <Text style={styles.copy}>{success ? 'Your identity and hostel location were checked by AttendX.' : 'Face the camera in clear, even lighting. Three frames are captured directly from the front camera.'}</Text>
+        <View style={styles.topbar}><Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backButton}><Text style={styles.backText}>‹</Text></Pressable><BrandMark size={40} /><Text style={styles.brand}>Attend<Text style={styles.brandAccent}>X</Text></Text></View>
+        <Text style={styles.eyebrow}>{success ? 'ALL SET' : 'ONE QUICK CHECK-IN'}</Text>
+        <Text style={styles.title}>{success ? 'You’re checked in.' : 'Look into the camera.'}</Text>
+        <Text style={styles.copy}>{success ? 'Your face and location are verified. You’re on the list.' : 'Face a light source and hold still. We’ll take three frames, then confirm your location.'}</Text>
 
         {!success && <View style={styles.locationStatus}>
-          <Text style={styles.locationStatusTitle}>Location access</Text>
+          <Text style={styles.locationStatusTitle}>Location</Text>
           <Text style={styles.locationStatusText}>
             {locationPermission === null ? 'Checking permission…' : locationPermission.granted
-              ? 'Allowed. The system prompt appears only when location access has not already been granted.'
-              : 'Needed when you submit. Android will ask when you tap “Check location & submit”.'}
+              ? 'Ready when you submit.'
+              : 'We’ll ask when you submit to confirm you’re here.'}
           </Text>
         </View>}
 
@@ -161,7 +163,7 @@ export default function CaptureScreen() {
         </>}
 
         {success && <Pressable onPress={() => router.replace('/student')} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Back to attendance</Text></Pressable>}
-        <Text style={styles.privacyNote}>Your current location is checked by the server against the hostel geofence when you submit.</Text>
+        <Text style={styles.privacyNote}>Your live selfie and location are checked for this check-in only.</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -175,25 +177,28 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.paper },
   page: { width: '100%', maxWidth: 640, alignSelf: 'center', padding: 22, paddingBottom: 42 },
   permissionPage: { flex: 1, justifyContent: 'center', alignItems: 'stretch', padding: 24 },
-  backButton: { alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 2, marginBottom: 16 },
-  backText: { color: COLORS.blue, fontWeight: '800', fontSize: 14 },
-  eyebrow: { color: COLORS.blue, fontSize: 10, letterSpacing: 1.5, fontWeight: '900', marginBottom: 7 },
+  topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 25 },
+  brand: { color: COLORS.ink, fontSize: 18, fontWeight: '900', letterSpacing: -0.7 },
+  brandAccent: { color: COLORS.accent },
+  backButton: { width: 38, height: 38, borderRadius: 13, backgroundColor: '#EDE4ED', alignItems: 'center', justifyContent: 'center', marginRight: 2 },
+  backText: { color: COLORS.ink, fontWeight: '800', fontSize: 23 },
+  eyebrow: { color: '#D26450', fontSize: 10, letterSpacing: 1.5, fontWeight: '900', marginBottom: 7 },
   title: { color: COLORS.ink, fontWeight: '900', fontSize: 29, letterSpacing: -1 },
   copy: { color: COLORS.muted, fontSize: 14, lineHeight: 21, marginTop: 8, marginBottom: 18 },
-  locationStatus: { backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.line, borderRadius: 16, padding: 15, marginBottom: 15 },
+  locationStatus: { backgroundColor: '#F0E8F0', borderWidth: 1, borderColor: '#E5D8E7', borderRadius: 16, padding: 15, marginBottom: 15 },
   locationStatusTitle: { color: COLORS.ink, fontSize: 12, fontWeight: '800' },
   locationStatusText: { color: COLORS.muted, fontSize: 12, lineHeight: 17, marginTop: 4 },
-  cameraFrame: { height: 440, maxHeight: '58%', minHeight: 300, borderRadius: 28, overflow: 'hidden', backgroundColor: '#10251F', justifyContent: 'center', alignItems: 'center', borderWidth: 4, borderColor: COLORS.white },
+  cameraFrame: { height: 440, maxHeight: '58%', minHeight: 300, borderRadius: 28, overflow: 'hidden', backgroundColor: COLORS.navy, justifyContent: 'center', alignItems: 'center', borderWidth: 4, borderColor: COLORS.white },
   camera: { ...StyleSheet.absoluteFill },
   faceGuide: { width: 220, height: 290, borderRadius: 130, borderWidth: 2, borderColor: 'rgba(255,255,255,0.85)' },
-  message: { color: COLORS.ink, backgroundColor: '#E9EEE4', borderRadius: 13, padding: 13, marginTop: 14, fontSize: 13, lineHeight: 19 },
-  success: { color: '#176044', backgroundColor: '#E4F0E4', borderColor: '#C9DDC8', borderWidth: 1 },
+  message: { color: COLORS.ink, backgroundColor: '#EEE5EF', borderRadius: 13, padding: 13, marginTop: 14, fontSize: 13, lineHeight: 19 },
+  success: { color: '#3C6A5E', backgroundColor: '#E6EEE8', borderColor: '#C9DCD0', borderWidth: 1 },
   errorMessage: { color: COLORS.red, backgroundColor: '#FFF0EA', borderColor: '#F0D3C9', borderWidth: 1, borderRadius: 13, padding: 13, marginTop: 14, fontSize: 13, lineHeight: 19 },
-  primaryButton: { minHeight: 54, borderRadius: 15, backgroundColor: COLORS.navy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 14 },
-  primaryButtonText: { color: COLORS.white, fontSize: 14, fontWeight: '800' },
+  primaryButton: { minHeight: 56, borderRadius: 16, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 14 },
+  primaryButtonText: { color: COLORS.navy, fontSize: 14, fontWeight: '900' },
   disabled: { opacity: 0.55 },
   secondaryButton: { minHeight: 45, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  secondaryText: { color: COLORS.blue, fontSize: 13, fontWeight: '700' },
-  captureCount: { color: '#126747', fontSize: 13, fontWeight: '700', marginTop: 15 },
+  secondaryText: { color: COLORS.ink, fontSize: 13, fontWeight: '700' },
+  captureCount: { color: '#477569', fontSize: 13, fontWeight: '800', marginTop: 15 },
   privacyNote: { color: COLORS.muted, fontSize: 11, textAlign: 'center', lineHeight: 16, marginTop: 19 },
 });
