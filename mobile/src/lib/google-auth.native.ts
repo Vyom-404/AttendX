@@ -11,7 +11,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   GoogleOneTapSignIn,
   isCancelledResponse,
-  isNoSavedCredentialFoundResponse,
   isSuccessResponse,
 } from 'react-native-nitro-google-signin';
 
@@ -57,13 +56,7 @@ GoogleOneTapSignIn.configure({
 export async function signInWithGoogle(): Promise<string> {
   await GoogleOneTapSignIn.checkPlayServices();
 
-  let result = await GoogleOneTapSignIn.signIn();
-  if (isNoSavedCredentialFoundResponse(result)) {
-    result = await GoogleOneTapSignIn.createAccount();
-  }
-  if (isNoSavedCredentialFoundResponse(result)) {
-    result = await GoogleOneTapSignIn.presentExplicitSignIn();
-  }
+  const result = await GoogleOneTapSignIn.presentExplicitSignIn();
   if (isCancelledResponse(result)) {
     throw new Error('Google sign-in was cancelled.');
   }
