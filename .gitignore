@@ -5,3 +5,4 @@ __pycache__/
 face-service/samples/
 api/node_modules/
 api/students.json
+node_modules/
