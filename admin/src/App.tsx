@@ -146,3 +146,18 @@ function Dashboard() {
       setBusy(false);
     }
   }
+
+  async function closeSession() {
+    if (!selected || !token) return;
+    setError('');
+    try {
+      const result = await apiRequest<{ session: AdminSession }>(`/admin/sessions/${selected._id}`, token, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'closed' }),
+      });
+      setSessions((current) => current.map((item) => item._id === result.session._id ? result.session : item));
+      setNotice('Session closed.');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not close the session.');
+    }
+  }
