@@ -20,3 +20,34 @@ export function App() {
   if (status === 'signed-out') return <SignInPage />;
   return <Dashboard />;
 }
+
+function SignInPage() {
+  const { error, signIn } = useAuth();
+  const [signingIn, setSigningIn] = useState(false);
+
+  async function handleSignIn() {
+    setSigningIn(true);
+    try {
+      await signIn();
+    } catch {
+      // The auth provider keeps a readable error for the sign-in page.
+    } finally {
+      setSigningIn(false);
+    }
+  }
+
+  return (
+    <main className="signin-layout">
+      <section className="signin-card">
+        <div className="brand-mark">A</div>
+        <p className="eyebrow">WARDEN PORTAL</p>
+        <h1>Sign in to Attend<span className="brand-accent">X</span></h1>
+        <p className="muted">Use the Google account linked to your AttendX admin account.</p>
+        {error && <p className="error-banner" role="alert">{error}</p>}
+        <button className="button button-primary button-wide" onClick={handleSignIn} disabled={signingIn}>
+          {signingIn ? 'Signing in…' : 'Continue with Google'}
+        </button>
+      </section>
+    </main>
+  );
+}
