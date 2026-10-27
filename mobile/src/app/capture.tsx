@@ -12,7 +12,8 @@ import { useAuth } from '@/providers/auth-provider';
 type Capture = { uri: string; name: string };
 type AttendanceResult = { status: 'present'; markedAt: string };
 
-const COLORS = { ink: '#152638', muted: '#718195', blue: '#2E6DE5', navy: '#12283E', paper: '#F4F7FB', white: '#FFFFFF', line: '#E5EAF0', red: '#B42318' };
+const COLORS = { ink: '#18352E', muted: '#73847D', blue: '#1D604B', navy: '#153F35', paper: '#F5F3EB', white: '#FFFFFF', line: '#E7E8DD', red: '#9D3931', lime: '#D9F17F' };
+type Feedback = { kind: 'info' | 'error' | 'success'; text: string };
 
 export default function CaptureScreen() {
   const { token } = useAuth();
@@ -22,14 +23,14 @@ export default function CaptureScreen() {
   const [cameraReady, setCameraReady] = useState(false);
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [working, setWorking] = useState(false);
-  const [message, setMessage] = useState('');
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [success, setSuccess] = useState(false);
   const [locationSettingsNeeded, setLocationSettingsNeeded] = useState(false);
 
   async function captureSequence() {
     if (!cameraRef.current || !cameraReady || working) return;
     setWorking(true);
-    setMessage('');
+    setFeedback(null);
     try {
       const freshCaptures: Capture[] = [];
       for (let index = 0; index < 3; index += 1) {
@@ -39,9 +40,9 @@ export default function CaptureScreen() {
         if (index < 2) await new Promise((resolve) => setTimeout(resolve, 650));
       }
       setCaptures(freshCaptures);
-      setMessage('Three camera frames captured. Submit them while staying in the attendance area.');
+      setFeedback({ kind: 'success', text: 'Three camera frames captured. Submit them while staying in the attendance area.' });
     } catch (reason) {
-      setMessage(reason instanceof Error ? reason.message : 'Could not capture the photos. Please try again.');
+      setFeedback({ kind: 'error', text: reason instanceof Error ? reason.message : 'Could not capture the photos. Please try again.' });
     } finally {
       setWorking(false);
     }
@@ -50,7 +51,7 @@ export default function CaptureScreen() {
   async function submitAttendance() {
     if (!token || captures.length !== 3 || working) return;
     setWorking(true);
-    setMessage('Getting a fresh location and checking your attendance…');
+    setFeedback({ kind: 'info', text: 'Getting a fresh location and checking your attendance…' });
     try {
       const permissionResult = locationPermission?.granted
         ? locationPermission
@@ -87,10 +88,10 @@ export default function CaptureScreen() {
 
       await apiRequest<AttendanceResult>('/attendance', token, { method: 'POST', body: form });
       setSuccess(true);
-      setMessage('Attendance marked successfully.');
+      setFeedback({ kind: 'success', text: 'Attendance marked successfully.' });
     } catch (reason) {
       const detail = reason instanceof Error ? reason.message : 'Could not submit attendance. Please try again.';
-      setMessage(detail);
+      setFeedback({ kind: 'error', text: detail });
     } finally {
       setWorking(false);
     }
@@ -106,7 +107,8 @@ export default function CaptureScreen() {
         <Text style={styles.eyebrow}>ATTENDANCE CHECK</Text>
         <Text style={styles.title}>Allow camera access</Text>
         <Text style={styles.copy}>AttendX takes three fresh frames directly from the front camera. It does not offer a gallery picker.</Text>
-        <Pressable onPress={requestPermission} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Allow camera</Text></Pressable>
+        <Pressable onPress={() => { void requestPermission().catch((reason) => setFeedback({ kind: 'error', text: reason instanceof Error ? reason.message : 'Could not request camera access.' })); }} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Allow camera</Text></Pressable>
+        {feedback && <Text accessibilityRole="alert" style={styles.errorMessage}>{feedback.text}</Text>}
         <Pressable onPress={() => router.back()} style={styles.backButton}><Text style={styles.backText}>Go back</Text></Pressable>
       </ScreenFrame>
     );
@@ -140,7 +142,7 @@ export default function CaptureScreen() {
           <View pointerEvents="none" style={styles.faceGuide} />
         </View>}
 
-        {!!message && <Text accessibilityRole="alert" style={[styles.message, success && styles.success]}>{message}</Text>}
+        {feedback && <Text accessibilityRole={feedback.kind === 'error' ? 'alert' : undefined} style={[styles.message, feedback.kind === 'success' && styles.success, feedback.kind === 'error' && styles.errorMessage]}>{feedback.text}</Text>}
 
         {locationSettingsNeeded && <Pressable onPress={() => Linking.openSettings()} style={styles.secondaryButton}>
           <Text style={styles.secondaryText}>Open app settings</Text>
@@ -155,7 +157,7 @@ export default function CaptureScreen() {
           <Pressable disabled={working} onPress={submitAttendance} style={[styles.primaryButton, working && styles.disabled]}>
             {working ? <ActivityIndicator color={COLORS.white} /> : <Text style={styles.primaryButtonText}>Check location & submit</Text>}
           </Pressable>
-          <Pressable disabled={working} onPress={() => { setCaptures([]); setMessage(''); }} style={styles.secondaryButton}><Text style={styles.secondaryText}>Retake photos</Text></Pressable>
+          <Pressable disabled={working} onPress={() => { setCaptures([]); setFeedback(null); }} style={styles.secondaryButton}><Text style={styles.secondaryText}>Retake photos</Text></Pressable>
         </>}
 
         {success && <Pressable onPress={() => router.replace('/student')} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Back to attendance</Text></Pressable>}
@@ -174,19 +176,20 @@ const styles = StyleSheet.create({
   page: { width: '100%', maxWidth: 640, alignSelf: 'center', padding: 22, paddingBottom: 42 },
   permissionPage: { flex: 1, justifyContent: 'center', alignItems: 'stretch', padding: 24 },
   backButton: { alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 2, marginBottom: 16 },
-  backText: { color: COLORS.blue, fontWeight: '700', fontSize: 14 },
-  eyebrow: { color: COLORS.blue, fontSize: 10, letterSpacing: 1.5, fontWeight: '800', marginBottom: 7 },
-  title: { color: COLORS.ink, fontWeight: '800', fontSize: 27, letterSpacing: -0.7 },
+  backText: { color: COLORS.blue, fontWeight: '800', fontSize: 14 },
+  eyebrow: { color: COLORS.blue, fontSize: 10, letterSpacing: 1.5, fontWeight: '900', marginBottom: 7 },
+  title: { color: COLORS.ink, fontWeight: '900', fontSize: 29, letterSpacing: -1 },
   copy: { color: COLORS.muted, fontSize: 14, lineHeight: 21, marginTop: 8, marginBottom: 18 },
-  locationStatus: { backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.line, borderRadius: 13, padding: 13, marginBottom: 15 },
+  locationStatus: { backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.line, borderRadius: 16, padding: 15, marginBottom: 15 },
   locationStatusTitle: { color: COLORS.ink, fontSize: 12, fontWeight: '800' },
   locationStatusText: { color: COLORS.muted, fontSize: 12, lineHeight: 17, marginTop: 4 },
-  cameraFrame: { height: 440, maxHeight: '58%', minHeight: 300, borderRadius: 24, overflow: 'hidden', backgroundColor: '#091522', justifyContent: 'center', alignItems: 'center' },
+  cameraFrame: { height: 440, maxHeight: '58%', minHeight: 300, borderRadius: 28, overflow: 'hidden', backgroundColor: '#10251F', justifyContent: 'center', alignItems: 'center', borderWidth: 4, borderColor: COLORS.white },
   camera: { ...StyleSheet.absoluteFill },
   faceGuide: { width: 220, height: 290, borderRadius: 130, borderWidth: 2, borderColor: 'rgba(255,255,255,0.85)' },
-  message: { color: COLORS.ink, backgroundColor: '#EAF1FA', borderRadius: 12, padding: 12, marginTop: 14, fontSize: 13, lineHeight: 19 },
-  success: { color: '#126747', backgroundColor: '#E4F7EF' },
-  primaryButton: { minHeight: 52, borderRadius: 14, backgroundColor: COLORS.navy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 14 },
+  message: { color: COLORS.ink, backgroundColor: '#E9EEE4', borderRadius: 13, padding: 13, marginTop: 14, fontSize: 13, lineHeight: 19 },
+  success: { color: '#176044', backgroundColor: '#E4F0E4', borderColor: '#C9DDC8', borderWidth: 1 },
+  errorMessage: { color: COLORS.red, backgroundColor: '#FFF0EA', borderColor: '#F0D3C9', borderWidth: 1, borderRadius: 13, padding: 13, marginTop: 14, fontSize: 13, lineHeight: 19 },
+  primaryButton: { minHeight: 54, borderRadius: 15, backgroundColor: COLORS.navy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, marginTop: 14 },
   primaryButtonText: { color: COLORS.white, fontSize: 14, fontWeight: '800' },
   disabled: { opacity: 0.55 },
   secondaryButton: { minHeight: 45, alignItems: 'center', justifyContent: 'center', marginTop: 6 },

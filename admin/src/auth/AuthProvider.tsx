@@ -123,11 +123,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await firebaseSignOut(firebaseAuth);
-    setToken(null);
-    setUser(null);
-    setError('');
-    setStatus('signed-out');
+    try {
+      await firebaseSignOut(firebaseAuth);
+      setToken(null);
+      setUser(null);
+      setError('');
+      setStatus('signed-out');
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : 'Could not sign out. Please try again.';
+      setError(message);
+      throw reason;
+    }
   }, []);
 
   const value = useMemo(() => ({

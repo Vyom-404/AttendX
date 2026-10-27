@@ -53,7 +53,7 @@ function SignInPage() {
 }
 
 function Dashboard() {
-  const { token, user, signOut } = useAuth();
+  const { token, user, signOut, error: authError } = useAuth();
   const [sessions, setSessions] = useState<AdminSession[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [roster, setRoster] = useState<RosterRecord[]>([]);
@@ -183,7 +183,7 @@ function Dashboard() {
     <main className="dashboard-shell">
       <header className="topbar">
         <a className="brand" href="/" aria-label="AttendX admin home"><span className="brand-mark small">A</span><span>Attend<span className="brand-accent">X</span></span></a>
-        <div className="account-actions"><span className="admin-badge">Admin access</span><span className="account-name">{user?.name}</span><button className="button button-quiet" onClick={() => void signOut()}>Sign out</button></div>
+        <div className="account-actions"><span className="admin-badge">Admin access</span><span className="account-name">{user?.name}</span><button className="button button-quiet" onClick={() => { void signOut().catch(() => undefined); }}>Sign out</button></div>
       </header>
 
       <section className="page-heading">
@@ -191,7 +191,7 @@ function Dashboard() {
         <button className="button button-primary" onClick={() => { setShowCreate((value) => !value); setError(''); }}>{showCreate ? 'Cancel' : '+ New session'}</button>
       </section>
 
-      {error && <p className="error-banner" role="alert">{error}</p>}
+      {(error || authError) && <p className="error-banner" role="alert">{error || authError}</p>}
       {notice && <button className="notice-banner" onClick={() => setNotice('')}>{notice} ×</button>}
 
       {showCreate && <section className="panel create-panel">
