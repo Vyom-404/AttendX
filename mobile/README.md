@@ -1,10 +1,10 @@
 # AttendX mobile app
 
-This Expo app contains student attendance check-in and the hostel admin dashboard. Android sign-in uses Google through Firebase Authentication; web warden sign-in temporarily uses the API's development-only route. Students can use the in-app front camera and foreground location to submit attendance to the API.
+This Expo app contains student attendance check-in and the hostel admin dashboard. Android students and wardens, and web wardens, sign in with Google through Firebase Authentication. Students can use the in-app front camera and foreground location to submit attendance to the API.
 
 ## Run it locally
 
-1. Set the API URL in `mobile/.env` (copy `mobile/.env.example`). For a physical phone, set `API_HOST=0.0.0.0` in the root `.env` and use your Mac's local network IP instead of `localhost`.
+1. Set the API URL and Firebase Web app config in `mobile/.env` (copy the variable names from `mobile/.env.example`). For a physical phone, set `API_HOST=0.0.0.0` in the root `.env` and use your Mac's local network IP instead of `localhost`.
 2. In one terminal, start the Node API:
 
    ```bash
@@ -21,9 +21,9 @@ This Expo app contains student attendance check-in and the hostel admin dashboar
 
 Press `w` in the Expo terminal for the web dashboard. Expo Go still works for other mobile development, but native Google sign-in requires an EAS development build. From `mobile/`, run `npx eas-cli@latest build:configure`, then `npx eas-cli@latest build --platform android --profile development`. EAS will ask you to sign in and create the Android signing key.
 
-## Development sign-in
+## Google sign-in
 
-Android students and wardens sign in with their linked Google account. The API accepts the Firebase ID token only when the verified Google email matches an active AttendX account. Web currently has a temporary admin-only development sign-in that asks for the server-side `DEV_LOGIN_SECRET`; it is not the production sign-in flow. The secret is typed at runtime and is not bundled in the app. An account needs the server-side `admin` role to open the dashboard.
+Android students and wardens, and web wardens, sign in with their linked Google account. The API accepts a Firebase ID token only when its verified email matches an active AttendX account. Web accepts only accounts with the server-side `admin` role. Add the Firebase Web app's public config values to `mobile/.env`; never put the Firebase Admin private key in the Expo app.
 
 The dashboard reads session and attendance data from the API. Room numbers are optional and come from the private `api/students.json` manifest. Add a `roomNumber` for each student and run `npm run sync:roster` from `api/` to update them without reprocessing face photos.
 
