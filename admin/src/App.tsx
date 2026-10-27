@@ -194,3 +194,9 @@ function Dashboard() {
       {error && <p className="error-banner" role="alert">{error}</p>}
       {notice && <button className="notice-banner" onClick={() => setNotice('')}>{notice} ×</button>}
 
+      {showCreate && <section className="panel create-panel">
+        <div><h2>Open an attendance session</h2><p className="muted">It starts now and closes after the selected duration.</p></div>
+        <label>Session title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Evening roll call" /></label>
+        <label>Duration in minutes<input type="number" min="5" max="720" value={duration} onChange={(event) => setDuration(event.target.value)} /></label>
+        <button className="button button-primary" onClick={() => void createSession()} disabled={busy}>{busy ? 'Opening…' : 'Open session'}</button>
+      </section>}
