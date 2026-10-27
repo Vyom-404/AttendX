@@ -235,3 +235,7 @@ function Dashboard() {
     </main>
   );
 }
+
+function MetricCard({ label, value, tone = 'blue' }: { label: string; value: number; tone?: string }) {
+  return <article className={`metric-card metric-${tone}`}><p>{label}</p><strong>{value}</strong></article>;
+}
