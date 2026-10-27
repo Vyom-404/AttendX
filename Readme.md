@@ -4,6 +4,8 @@
   <p><strong>A calmer hostel roll call.</strong></p>
   <p>Students check in from Android. Wardens open sessions and see the roster from a browser.</p>
   <p>
+    <a href="https://linktr.ee/vyomg20082005">Download the app · Warden portal</a>
+    &nbsp;·&nbsp;
     <a href="https://attendx-mobile.vercel.app/">Open warden dashboard</a>
     &nbsp;·&nbsp;
     <a href="https://attend-x-xi.vercel.app/health">Check API health</a>
@@ -24,6 +26,7 @@ AttendX is a student project for hostel attendance. It brings together a student
 
 | Service | Link | What it is |
 | --- | --- | --- |
+| AttendX links | [linktr.ee/vyomg20082005](https://linktr.ee/vyomg20082005) | Linktree page with the Android app download and warden portal. |
 | Warden dashboard | [attendx-mobile.vercel.app](https://attendx-mobile.vercel.app/) | Google sign-in, open/close sessions, live roster, flagged check-in attempts, CSV export. |
 | Node API health | [attend-x-xi.vercel.app/health](https://attend-x-xi.vercel.app/health) | API and MongoDB connectivity status. |
 | Face service health | [attendxfaceservice.vercel.app/health](https://attendxfaceservice.vercel.app/health) | InsightFace model and liveness-service status. |
