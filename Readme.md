@@ -103,13 +103,40 @@ The warden dashboard reads session rosters and rejected-attempt events from the 
 
 ## Technology
 
-- **Mobile and web:** Expo SDK 58, React Native, Expo Router, TypeScript.
-- **Warden portal:** React, TypeScript, Vite (in `admin/`).
-- **API:** Node.js, Express, MongoDB Node driver.
+- **Mobile and web:** Expo SDK 58 (`expo` package 58.0.19), React Native 0.88.0, Expo Router 58.0.26, TypeScript.
+- **Warden portal:** React 19.3.0, TypeScript, Vite 8.3.5 (in `admin/`).
+- **API:** Node.js, Express 5.3.0, MongoDB Node.js driver 6.21.0.
 - **Database:** MongoDB Atlas.
-- **Authentication:** Firebase Authentication with Google sign-in; the API validates Firebase ID tokens and checks server-side account roles.
-- **Face service:** Python, FastAPI, OpenCV, InsightFace `buffalo_l`, ONNX Runtime, liveness add-on.
+- **Authentication:** Firebase Authentication with Google sign-in; the API validates Firebase ID tokens and checks server-side account roles. Firebase JS SDK 13.1.0; Firebase Admin SDK 14.5.0.
+- **Face service:** Python, FastAPI, OpenCV, InsightFace, ONNX Runtime, and the InsightFace liveness add-on.
 - **Hosting:** Vercel for the API, face service, and current web deployment; EAS Build for Android APKs.
+
+### Face and AI model details
+
+AttendX uses InsightFace's pretrained `buffalo_l` model pack; the project does not train or fine-tune these networks. The pack's model names and component versions are more specific than a single pack version:
+
+| Purpose | Model used | How AttendX uses it |
+| --- | --- | --- |
+| Face detection | **SCRFD-10GF** (`det_10g.onnx`) | Finds faces and landmarks in a camera image. Detection is prepared with a `640 × 640` input size. |
+| Face recognition | **ResNet50@WebFace600K** (`w600k_r50.onnx`) | Produces a 512-dimensional face embedding. The embedding is L2-normalized and compared with the student's saved template. |
+| Face alignment | **2d106** and **3d68** landmark models | Locate facial landmarks used by the pack's face-analysis pipeline. |
+| Liveness | InsightFace **`liveness` RGB add-on** (`liveness.onnx`) | Runs in `normal` mode. The add-on is separate from the `buffalo_l` pack; its default live-score threshold is 0.8. AttendX requires the library to classify each submitted frame as live. |
+| Enrollment template | Mean of the accepted enrollment embeddings, normalized to unit length | At least 3 accepted images are required; the HTTP enrollment endpoint accepts 3–10 images. |
+
+The `buffalo_l` pack also includes a Gender & Age component, but AttendX does not use demographic estimates in its attendance decision. The official [InsightFace model-zoo table](https://github.com/deepinsight/insightface/blob/master/model_zoo/README.md) lists the pack components. See the [liveness add-on guide](https://github.com/deepinsight/insightface/blob/master/python-package/docs/liveness.md) for its separate model and default threshold.
+
+| Runtime or decision setting | Version/value in this repository |
+| --- | --- |
+| InsightFace Python package | `2.1` (`face-service/requirements.txt`) |
+| FastAPI | `0.143.0` |
+| ONNX Runtime | `1.31.0` |
+| OpenCV headless | `5.0.0.93` |
+| NumPy | `2.4.6` |
+| scikit-image | `0.26.0` |
+| Attendance capture sequence | 3 front-camera still frames; all must pass liveness. |
+| Face-match policy | Median of 3 cosine-similarity scores; default `FACE_MATCH_THRESHOLD=0.70`, policy label `cosine-median3-0.70`. |
+
+The numeric package versions above come from the checked-in lockfiles or pinned Python requirements. `buffalo_l` and the liveness add-on are model names, not semantic version numbers; the add-on weights are selected by the pinned InsightFace package's model catalog rather than a separate version field in AttendX. Public InsightFace pretrained models are restricted to non-commercial research use; see the [model-zoo terms](https://github.com/deepinsight/insightface/tree/master/model_zoo).
 
 ## Face templates and privacy
 
