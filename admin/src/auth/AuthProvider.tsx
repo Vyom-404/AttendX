@@ -59,3 +59,10 @@ async function exchangeFirebaseUser(firebaseUser: FirebaseUser) {
   }
   return result as { accessToken: string; user: ApiUser };
 }
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [status, setStatus] = useState<AuthStatus>('checking');
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<ApiUser | null>(null);
+  const [error, setError] = useState('');
+
