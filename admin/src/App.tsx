@@ -161,3 +161,20 @@ function Dashboard() {
       setError(reason instanceof Error ? reason.message : 'Could not close the session.');
     }
   }
+
+  async function exportReport() {
+    if (!selected || !token) return;
+    setError('');
+    try {
+      const csv = await downloadReport(`/admin/sessions/${selected._id}/export`, token);
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `attendx-${selected.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.csv`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setNotice('Report downloaded.');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not export this report.');
+    }
+  }
