@@ -115,3 +115,34 @@ function Dashboard() {
       `${record.name} ${record.studentId} ${record.roomNumber || ''}`.toLowerCase().includes(query),
     );
   }, [roster, search]);
+
+  async function createSession() {
+    const minutes = Number(duration);
+    if (!title.trim() || !Number.isFinite(minutes) || minutes < 5 || minutes > 720) {
+      setError('Choose a title and a duration between 5 minutes and 12 hours.');
+      return;
+    }
+    if (!token) return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    const startAt = new Date();
+    try {
+      const result = await apiRequest<{ session: AdminSession }>('/admin/sessions', token, {
+        method: 'POST',
+        body: JSON.stringify({
+          title: title.trim(),
+          startAt: startAt.toISOString(),
+          endAt: new Date(startAt.getTime() + minutes * 60_000).toISOString(),
+        }),
+      });
+      setSessions((current) => [result.session, ...current]);
+      setSelectedId(result.session._id);
+      setShowCreate(false);
+      setNotice('Attendance session opened.');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not create the session.');
+    } finally {
+      setBusy(false);
+    }
+  }
