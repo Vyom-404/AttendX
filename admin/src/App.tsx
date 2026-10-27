@@ -51,3 +51,19 @@ function SignInPage() {
     </main>
   );
 }
+
+function Dashboard() {
+  const { token, user, signOut } = useAuth();
+  const [sessions, setSessions] = useState<AdminSession[]>([]);
+  const [selectedId, setSelectedId] = useState('');
+  const [roster, setRoster] = useState<RosterRecord[]>([]);
+  const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [search, setSearch] = useState('');
+  const [title, setTitle] = useState('Hostel attendance');
+  const [duration, setDuration] = useState('60');
+  const [showCreate, setShowCreate] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
