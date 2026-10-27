@@ -84,22 +84,6 @@ export async function saveStudentTemplate({
   );
 }
 
-/** Return a student's template only for internal identity verification. */
-export async function findActiveStudentTemplate(studentId) {
-  const cleanStudentId = requireText(studentId, "studentId", 100);
-  return getDatabase().collection("students").findOne(
-    { studentId: cleanStudentId, status: "active", "faceTemplate.embedding": { $exists: true } },
-    {
-      projection: {
-        _id: 0,
-        studentId: 1,
-        name: 1,
-        faceTemplate: 1,
-      },
-    },
-  );
-}
-
 function requireText(value, field, maxLength) {
   if (typeof value !== "string") {
     throw new TypeError(`${field} must be text`);
