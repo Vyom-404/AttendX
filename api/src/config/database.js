@@ -9,8 +9,20 @@ if (!connectionString) {
 const client = new MongoClient(connectionString);
 
 let database;
+let connectionPromise;
 
 export async function connectToDatabase() {
+  if (database) return database;
+  if (connectionPromise) return connectionPromise;
+
+  connectionPromise = initializeDatabase().catch((error) => {
+    connectionPromise = undefined;
+    throw error;
+  });
+  return connectionPromise;
+}
+
+async function initializeDatabase() {
   await client.connect();
   await client.db("attendx").command({ ping: 1 });
   database = client.db("attendx");

@@ -1,5 +1,5 @@
 import express from "express";
-import { getDatabase } from "./config/database.js";
+import { connectToDatabase, getDatabase } from "./config/database.js";
 import { ApiError, sendError } from "./lib/api-error.js";
 import { requestIdMiddleware } from "./middleware/request-id.js";
 import authRoutes from "./routes/auth.js";
@@ -35,6 +35,18 @@ app.use((request, response, next) => {
   next();
 });
 app.use(express.json({ limit: "32kb" }));
+app.use(async (request, response, next) => {
+  try {
+    await connectToDatabase();
+    next();
+  } catch (error) {
+    console.error("MongoDB connection failed:", error.message);
+    if (request.path === "/health") {
+      return response.status(503).json({ status: "unavailable", database: "disconnected" });
+    }
+    next(new ApiError(503, "DATABASE_UNAVAILABLE", "The database is temporarily unavailable."));
+  }
+});
 
 app.get("/health", async (_request, response) => {
   try {
