@@ -46,7 +46,7 @@ AttendX is a student project for hostel attendance. It brings together a student
 | Warden dashboard | [attendx-mobile.vercel.app](https://attendx-mobile.vercel.app/) | Google sign-in, open/close sessions, live roster, flagged check-in attempts, CSV export. |
 | Node API health | [attend-x-xi.vercel.app/health](https://attend-x-xi.vercel.app/health) | API and MongoDB connectivity status. |
 | Face service health | [attendxfaceservice.vercel.app/health](https://attendxfaceservice.vercel.app/health) | InsightFace model and liveness-service status. |
-| Student app | Android APK distributed privately | Students sign in and submit attendance from their phone. |
+| Student app | Android APK link given in linktree | Students sign in and submit attendance from their phone. |
 
 The current public web deployment is built from `mobile/` and includes the warden screen. `admin/` is a separate Vite web client in the repository; it is not the deployment linked above.
 
